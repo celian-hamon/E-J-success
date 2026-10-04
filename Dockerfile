@@ -17,15 +17,18 @@ FROM base AS builder
 ENV NEXT_TELEMETRY_DISABLED=1
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
-RUN npx prisma generate && npm run build
+# Local dev runs on SQLite; production runs on Postgres. Prisma can't pick the provider
+# from an env var, so the schema is switched here (and the build fails if that didn't work).
+RUN sed -i -E 's/provider(\s*)=(\s*)"sqlite"/provider\1=\2"postgresql"/' prisma/schema.prisma \
+  && grep -q '"postgresql"' prisma/schema.prisma \
+  && npx prisma generate && npm run build
 
 # ---- runtime ----
 FROM base AS runner
 ENV NODE_ENV=production \
     NEXT_TELEMETRY_DISABLED=1 \
     PORT=3000 \
-    HOSTNAME=0.0.0.0 \
-    DATABASE_URL="file:/app/data/prod.db"
+    HOSTNAME=0.0.0.0
 
 # Prisma CLI for `db push` at startup (pinned to the version in package-lock.json).
 RUN npm install -g prisma@6.19.3 && npm cache clean --force
@@ -39,10 +42,10 @@ COPY --from=builder --chown=node:node /app/node_modules/.prisma ./node_modules/.
 COPY --from=builder --chown=node:node /app/scripts/create-admin.mjs ./scripts/create-admin.mjs
 COPY --chown=node:node docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
 
-# SQLite database and uploaded files live on volumes.
-RUN mkdir -p /app/data /app/uploads && chown node:node /app/data /app/uploads \
+# Uploaded files live on a volume (the database is the Postgres service).
+RUN mkdir -p /app/uploads && chown node:node /app/uploads \
   && chmod +x /usr/local/bin/docker-entrypoint.sh
-VOLUME ["/app/data", "/app/uploads"]
+VOLUME ["/app/uploads"]
 
 USER node
 EXPOSE 3000

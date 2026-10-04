@@ -1,19 +1,38 @@
-# Production stack: the app behind Caddy, which gets a Let's Encrypt certificate for $DOMAIN.
+# Production stack: Postgres, the app, and Caddy in front (Let's Encrypt certificate for $DOMAIN).
 # Session cookies are `secure` in production, so the app must be reached over HTTPS.
 #
 #   cp .env.production.example .env   # then fill it in
 #   docker compose up -d --build
 
 services:
+  db:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-ejs}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
+      POSTGRES_DB: ${POSTGRES_DB:-ejs}
+    volumes:
+      - pg-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    # Not published on the host: only the app reaches it, over the compose network.
+
   app:
     build: .
     image: e-j-success:latest
     restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
     environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-ejs}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB:-ejs}?schema=public
       AUTH_SECRET: ${AUTH_SECRET:?set AUTH_SECRET in .env}
       ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
     volumes:
-      - db-data:/app/data
       - uploads:/app/uploads
     expose:
       - "3000"
@@ -36,7 +55,7 @@ services:
       - caddy-config:/config
 
 volumes:
-  db-data:
+  pg-data:
   uploads:
   caddy-data:
   caddy-config:

@@ -2,16 +2,19 @@
 # Recipes are plain commands so they run the same from cmd, PowerShell or a Unix shell.
 
 COMPOSE ?= docker compose
+# Must match POSTGRES_USER / POSTGRES_DB in .env if you changed them.
+POSTGRES_USER ?= ejs
+POSTGRES_DB ?= ejs
 
 .DEFAULT_GOAL := help
 .PHONY: help install dev build start typecheck check-messages check \
         db-push db-seed db-reset db-studio \
-        docker-build up down restart logs ps shell admin backup
+        docker-build up down restart logs ps shell admin db-shell backup restore
 
 help: ## List the targets
 	$(info Development:  install dev build start typecheck check-messages check)
 	$(info Database:     db-push db-seed db-reset db-studio)
-	$(info Production:   docker-build up down restart logs ps shell backup)
+	$(info Production:   docker-build up down restart logs ps shell db-shell backup restore)
 	$(info $()              admin EMAIL=you@school.org NAME="Your Name" PASSWORD=...)
 
 # ---- development ----
@@ -79,6 +82,15 @@ admin: ## Create or reset an admin: make admin EMAIL=... NAME="..." PASSWORD=...
 	$(if $(PASSWORD),,$(error PASSWORD is required (8+ characters)))
 	$(COMPOSE) exec -e ADMIN_PASSWORD=$(PASSWORD) app node scripts/create-admin.mjs $(EMAIL) "$(or $(NAME),Admin)"
 
-backup: ## Copy the database and uploads out of the volumes into ./backups (stop the app first for a consistent copy)
-	$(COMPOSE) cp app:/app/data ./backups/data
+db-shell: ## psql on the production database
+	$(COMPOSE) exec db psql -U $(POSTGRES_USER) -d $(POSTGRES_DB)
+
+backup: ## Dump the database (pg_dump custom format) and copy the uploads into ./backups
+	-mkdir backups
+	$(COMPOSE) exec -T db pg_dump -U $(POSTGRES_USER) -d $(POSTGRES_DB) -Fc -f /tmp/db.dump
+	$(COMPOSE) cp db:/tmp/db.dump ./backups/db.dump
 	$(COMPOSE) cp app:/app/uploads ./backups/uploads
+
+restore: ## Restore ./backups/db.dump into the database (replaces existing data)
+	$(COMPOSE) cp ./backups/db.dump db:/tmp/db.dump
+	$(COMPOSE) exec -T db pg_restore -U $(POSTGRES_USER) -d $(POSTGRES_DB) --clean --if-exists --no-owner /tmp/db.dump
