@@ -33,12 +33,30 @@ export function isUpload(value: FormDataEntryValue | null): value is File {
 export async function saveImage(file: File, uploadedById: string | null) {
   if (!ACCEPTED.includes(file.type)) throw new MediaError("type");
   if (file.size > MAX_INPUT_BYTES) throw new MediaError("size");
-  const input = Buffer.from(await file.arrayBuffer());
+  return storeImage(Buffer.from(await file.arrayBuffer()), file.type === "image/gif", uploadedById);
+}
 
+// Formats sharp may report for the accepted types (AVIF is read through libheif).
+const ACCEPTED_FORMATS = ["png", "jpeg", "webp", "gif", "heif"];
+
+/** Same as saveImage, for raw bytes whose type is unknown (e.g. decoded base64): sniffs the format first. */
+export async function saveImageBytes(input: Buffer, uploadedById: string | null) {
+  if (input.length > MAX_INPUT_BYTES) throw new MediaError("size");
+  let format: string | undefined;
+  try {
+    format = (await sharp(input).metadata()).format;
+  } catch {
+    throw new MediaError("invalid");
+  }
+  if (!format || !ACCEPTED_FORMATS.includes(format)) throw new MediaError("type");
+  return storeImage(input, format === "gif", uploadedById);
+}
+
+async function storeImage(input: Buffer, animated: boolean, uploadedById: string | null) {
   let output: Buffer;
   let info: { width: number; height: number; pageHeight?: number };
   try {
-    ({ data: output, info } = await sharp(input, { animated: file.type === "image/gif" })
+    ({ data: output, info } = await sharp(input, { animated })
       .rotate()
       .resize({ width: 1600, height: 1600, fit: "inside", withoutEnlargement: true })
       .webp({ quality: 82 })

@@ -1,0 +1,42 @@
+# Production stack: the app behind Caddy, which gets a Let's Encrypt certificate for $DOMAIN.
+# Session cookies are `secure` in production, so the app must be reached over HTTPS.
+#
+#   cp .env.production.example .env   # then fill it in
+#   docker compose up -d --build
+
+services:
+  app:
+    build: .
+    image: e-j-success:latest
+    restart: unless-stopped
+    environment:
+      AUTH_SECRET: ${AUTH_SECRET:?set AUTH_SECRET in .env}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+    volumes:
+      - db-data:/app/data
+      - uploads:/app/uploads
+    expose:
+      - "3000"
+
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    depends_on:
+      app:
+        condition: service_healthy
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    environment:
+      DOMAIN: ${DOMAIN:?set DOMAIN in .env}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+
+volumes:
+  db-data:
+  uploads:
+  caddy-data:
+  caddy-config:

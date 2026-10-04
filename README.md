@@ -102,6 +102,39 @@ Missed days are computed lazily on each visit (`syncPet`), so there's no cron jo
 The source PDF is saved to `./uploads` (see `src/lib/uploads.ts`). On serverless hosting, swap that
 for object storage such as S3, R2 or Vercel Blob.
 
+### JSON import
+
+A quiz can also be imported from a JSON file (course page → "Import a quiz (JSON)",
+`POST /api/courses/[courseId]/quizzes/import`, `src/lib/quiz-import.ts`). Example:
+[`public/quiz-import-example.json`](public/quiz-import-example.json).
+
+```json
+{
+  "title": "Optional, defaults to the file name",
+  "description": "Optional",
+  "mode": "classic",
+  "difficulty": "medium",
+  "secondsPerQuestion": 20,
+  "questions": [
+    {
+      "prompt": "Text, LaTeX allowed ($E = mc^2$)",
+      "image": "data:image/png;base64,iVBORw0…",
+      "choices": ["Plain text", { "text": "Or an object", "image": "…", "correct": true }],
+      "correctIndex": 1,
+      "explanation": "Optional",
+      "wrongFeedback": "Optional"
+    }
+  ]
+}
+```
+
+- The file may also be just the `questions` array.
+- 2 to 6 choices per question, exactly one correct: `correctIndex` (0-based) or `"correct": true` on one choice.
+- `image` (question or choice) is base64, as a data URL or bare. PNG, JPEG, WebP, GIF or AVIF, 10 MB max each;
+  images go through the same re-encoding as uploads. A choice can be an image with no text.
+- `mode`, `difficulty`, `secondsPerQuestion` are optional; the form's choices apply when the file doesn't set them.
+- The whole file is validated before anything is saved; errors name the question and answer at fault.
+
 ## Game modes
 
 Defined in `src/lib/game-modes.ts`. They all use the same multiple-choice questions, so any quiz can be played in any mode:

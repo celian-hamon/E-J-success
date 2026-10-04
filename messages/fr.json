@@ -259,6 +259,7 @@
     "published": "Publié",
     "draft": "Brouillon",
     "fromPdf": "Nouveau quiz à partir d’un PDF",
+    "fromJson": "Importer un quiz (JSON)",
     "leaderboard": "Classement de la classe · cette semaine",
     "leaderboardEmpty": "Aucun quiz terminé cette semaine.",
     "fromScratch": "Ou partir de zéro",
@@ -311,6 +312,29 @@
     "notPdf": "Ce fichier ne ressemble pas à un PDF.",
     "genFailedApi": "Impossible de générer les questions (erreur {status}). Le PDF est joint : ajoutez des questions à la main ou réessayez.",
     "genFailed": "Impossible de générer les questions : {reason}. Le PDF est joint : ajoutez des questions à la main."
+  },
+  "import": {
+    "offline": "Vous êtes hors ligne. L’import d’un quiz nécessite une connexion.",
+    "failed": "Échec de l’import.",
+    "choose": "Choisir un fichier JSON",
+    "limit": "JSON jusqu’à 25 Mo, images incluses en base64",
+    "help": "QCM de 2 à 6 réponses par question, une seule bonne. Les images (question ou réponse) sont en base64.",
+    "example": "Télécharger un exemple",
+    "importing": "Import…",
+    "submit": "Importer le quiz",
+    "chooseJson": "Choisissez un fichier JSON à importer.",
+    "tooLarge": "Ce fichier dépasse 25 Mo.",
+    "located": "{where} : {reason}",
+    "whereQuestion": "Question {n}",
+    "whereChoice": "réponse {n}",
+    "whereImage": "image",
+    "errors": {
+      "json": "Le fichier n’est pas un JSON valide ({detail}).",
+      "format": "contenu inattendu ({detail}).",
+      "correct": "il faut exactement une bonne réponse (correctIndex, ou \"correct\": true sur une réponse).",
+      "emptyChoice": "une réponse doit avoir un texte ou une image.",
+      "base64": "l’image n’est pas un base64 valide."
+    }
   },
   "editor": {
     "question": "Question",

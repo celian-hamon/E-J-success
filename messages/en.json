@@ -259,6 +259,7 @@
     "published": "Published",
     "draft": "Draft",
     "fromPdf": "New quiz from a PDF",
+    "fromJson": "Import a quiz (JSON)",
     "leaderboard": "Class leaderboard · this week",
     "leaderboardEmpty": "No quizzes finished this week yet.",
     "fromScratch": "Or start from scratch",
@@ -311,6 +312,29 @@
     "notPdf": "That file doesn't look like a PDF.",
     "genFailedApi": "Couldn't generate questions ({status} error). The PDF is attached; add questions by hand or try again.",
     "genFailed": "Couldn't generate questions: {reason}. The PDF is attached; add questions by hand."
+  },
+  "import": {
+    "offline": "You're offline. Importing a quiz needs a connection.",
+    "failed": "Import failed.",
+    "choose": "Choose a JSON file",
+    "limit": "JSON up to 25 MB, images included in base64",
+    "help": "Multiple-choice questions, 2 to 6 answers each, one correct. Images (question or answer) go in as base64.",
+    "example": "Download an example",
+    "importing": "Importing…",
+    "submit": "Import the quiz",
+    "chooseJson": "Choose a JSON file to import.",
+    "tooLarge": "That file is larger than 25 MB.",
+    "located": "{where}: {reason}",
+    "whereQuestion": "Question {n}",
+    "whereChoice": "answer {n}",
+    "whereImage": "image",
+    "errors": {
+      "json": "The file isn't valid JSON ({detail}).",
+      "format": "unexpected content ({detail}).",
+      "correct": "exactly one correct answer is needed (correctIndex, or \"correct\": true on one answer).",
+      "emptyChoice": "an answer needs text or an image.",
+      "base64": "the image isn't valid base64."
+    }
   },
   "editor": {
     "question": "Question",

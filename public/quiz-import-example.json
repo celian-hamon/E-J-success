@@ -1,0 +1,53 @@
+{
+  "title": "Exemple d’import JSON",
+  "description": "Montre le format : texte, LaTeX, images en base64 dans les questions et les réponses.",
+  "mode": "classic",
+  "difficulty": "easy",
+  "secondsPerQuestion": 20,
+  "questions": [
+    {
+      "prompt": "Quelle est la formule de l’eau ?",
+      "choices": [
+        "$\\mathrm{H_2O}$",
+        "$\\mathrm{CO_2}$",
+        "$\\mathrm{O_2}$",
+        "$\\mathrm{NaCl}$"
+      ],
+      "correctIndex": 0,
+      "explanation": "Une molécule d’eau contient deux atomes d’hydrogène et un atome d’oxygène.",
+      "wrongFeedback": "Relisez la partie sur les molécules simples."
+    },
+    {
+      "prompt": "De quelle couleur est ce carré ?",
+      "image": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABgAAAAYCAIAAABvFaqvAAAACXBIWXMAAAPoAAAD6AG1e1JrAAAAKElEQVQ4jWO4o6FBFcQwatCd0TC6M5qONEaziMZoMaIxWkJqDGQtAgDnQaMfjInHXwAAAABJRU5ErkJggg==",
+      "choices": [
+        {
+          "text": "Rouge",
+          "correct": true
+        },
+        {
+          "text": "Vert"
+        },
+        {
+          "text": "Bleu"
+        }
+      ],
+      "explanation": "C’est un carré rouge."
+    },
+    {
+      "prompt": "Lequel de ces carrés est bleu ?",
+      "choices": [
+        {
+          "image": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABgAAAAYCAIAAABvFaqvAAAACXBIWXMAAAPoAAAD6AG1e1JrAAAAKElEQVQ4jWO4o6FBFcQwatCd0TC6M5qONEaziMZoMaIxWkJqDGQtAgDnQaMfjInHXwAAAABJRU5ErkJggg=="
+        },
+        {
+          "image": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABgAAAAYCAIAAABvFaqvAAAACXBIWXMAAAPoAAAD6AG1e1JrAAAAKElEQVQ4jWPQWOBGFcQwapDGaBhpjKajBaNZZMFoMeI2WkK6DWQtAgAHKV+f55YbHwAAAABJRU5ErkJggg=="
+        },
+        {
+          "image": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABgAAAAYCAIAAABvFaqvAAAACXBIWXMAAAPoAAAD6AG1e1JrAAAAKElEQVQ4jWPQCLhDFcQwapDGaBhpjKajgNEsEjBajNwZLSHvDGQtAgDHIP0fpaxjCgAAAABJRU5ErkJggg==",
+          "correct": true
+        }
+      ]
+    }
+  ]
+}

@@ -2,6 +2,8 @@ import type { NextConfig } from "next";
 import createNextIntlPlugin from "next-intl/plugin";
 
 const nextConfig: NextConfig = {
+  // Self-contained server bundle in .next/standalone, used by the Docker image.
+  output: "standalone",
   // Prisma's engine and the Anthropic SDK stay on the server, outside the bundle.
   serverExternalPackages: ["@prisma/client", "bcryptjs", "sharp"],
   experimental: {

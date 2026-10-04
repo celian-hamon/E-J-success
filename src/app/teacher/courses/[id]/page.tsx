@@ -12,6 +12,7 @@ import PageHead from "@/components/PageHead";
 import Flash from "@/components/Flash";
 import { Leaderboard } from "@/components/Progress";
 import UploadQuizForm from "./UploadQuizForm";
+import ImportQuizForm from "./ImportQuizForm";
 import { createBlankQuiz } from "../../actions";
 
 type Props = { params: Promise<{ id: string }>; searchParams: SearchParams };
@@ -97,6 +98,10 @@ export default async function TeacherCoursePage({ params, searchParams }: Props)
           <section className="panel glass">
             <h2>{t("fromPdf")}</h2>
             <UploadQuizForm courseId={course.id} aiEnabled={isGeneratorConfigured()} />
+          </section>
+          <section className="panel glass">
+            <h2>{t("fromJson")}</h2>
+            <ImportQuizForm courseId={course.id} />
           </section>
           <section className="panel glass">
             <h2>{t("leaderboard")}</h2>
