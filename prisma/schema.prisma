@@ -1,0 +1,243 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// Roles: "ADMIN" | "TEACHER" | "STUDENT" (see src/lib/roles.ts).
+// Stored as strings so the schema works on SQLite and Postgres alike.
+model User {
+  id           String       @id @default(cuid())
+  email        String       @unique
+  name         String
+  passwordHash String
+  role         String       @default("STUDENT")
+  createdAt    DateTime     @default(now())
+  taught       Course[]     @relation("CourseTeacher")
+  enrollments  Enrollment[]
+  attempts     Attempt[]
+  classId      String? // students belong to at most one class (see src/lib/classes.ts)
+  schoolClass  SchoolClass? @relation(fields: [classId], references: [id], onDelete: SetNull)
+
+  // Meta progression (see src/lib/gamification/)
+  avatar            String? // JSON AvatarConfig; null = default look
+  xp                Int       @default(0)
+  currentStreak     Int       @default(0)
+  longestStreak     Int       @default(0)
+  lastActiveDay     String? // "YYYY-MM-DD" of the last day a quiz was completed
+  streakFreezes     Int       @default(0)
+  showOnLeaderboard Boolean   @default(true)
+  badges            UserBadge[]
+  xpEvents          XpEvent[]
+  pet               Pet?
+  petMeals          PetMeal[]
+}
+
+// The student's tamagotchi (see src/lib/pet/). It only eats meals earned by
+// finishing a quiz in a course that meets that day.
+model Pet {
+  id            String   @id @default(cuid())
+  userId        String   @unique
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name          String   @default("Pixel")
+  color         String   @default("teal")
+  fullness      Int      @default(80) // 0..100
+  happiness     Int      @default(80) // 0..100
+  mealsEaten    Int      @default(0)
+  lastTickDay   String? // last day whose missed meals were applied ("YYYY-MM-DD")
+  lastCuddleDay String?
+  createdAt     DateTime @default(now())
+}
+
+// One meal per course per class day, earned by finishing any quiz of that course that day.
+model PetMeal {
+  id        String    @id @default(cuid())
+  userId    String
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  courseId  String
+  course    Course    @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  day       String
+  attemptId String?
+  fedAt     DateTime? // null = earned but not hand-fed yet
+  createdAt DateTime  @default(now())
+
+  @@unique([userId, courseId, day])
+}
+
+model UserBadge {
+  id       String   @id @default(cuid())
+  userId   String
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  badgeId  String // key in src/lib/gamification/badges.ts
+  earnedAt DateTime @default(now())
+
+  @@unique([userId, badgeId])
+}
+
+// Every XP gain, so leaderboards can be computed per course and per week.
+model XpEvent {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  courseId  String?
+  course    Course?  @relation(fields: [courseId], references: [id], onDelete: SetNull)
+  attemptId String?
+  amount    Int
+  reason    String
+  createdAt DateTime @default(now())
+
+  @@index([courseId, createdAt])
+  @@index([userId, createdAt])
+}
+
+model Course {
+  id          String       @id @default(cuid())
+  code        String       @unique
+  title       String
+  description String?
+  teacherId   String?
+  teacher     User?        @relation("CourseTeacher", fields: [teacherId], references: [id], onDelete: SetNull)
+  classDays   String       @default("") // ISO weekdays the class meets, e.g. "1,3,5" (see src/lib/schedule.ts)
+  enrollments Enrollment[]
+  quizzes     Quiz[]
+  xpEvents    XpEvent[]
+  petMeals    PetMeal[]
+  classLinks  ClassCourse[]
+  createdAt   DateTime     @default(now())
+}
+
+// An uploaded image (question or answer illustration), stored as WebP in uploads/media/
+// and served by /media/<id> (see src/lib/media.ts).
+model Media {
+  id           String     @id @default(cuid())
+  mimeType     String
+  size         Int
+  width        Int
+  height       Int
+  uploadedById String?
+  createdAt    DateTime   @default(now())
+  questions    Question[]
+  choices      Choice[]
+}
+
+// A class ("6e A", "Terminale B"…): a group of students who all follow the same courses.
+model SchoolClass {
+  id          String        @id @default(cuid())
+  name        String        @unique
+  level       String?
+  schoolYear  String?
+  students    User[]
+  courses     ClassCourse[]
+  enrollments Enrollment[]
+  createdAt   DateTime      @default(now())
+}
+
+model ClassCourse {
+  classId  String
+  courseId String
+  class    SchoolClass @relation(fields: [classId], references: [id], onDelete: Cascade)
+  course   Course      @relation(fields: [courseId], references: [id], onDelete: Cascade)
+
+  @@id([classId, courseId])
+}
+
+// A student's access to a course: either assigned directly (viaClassId = null) or
+// derived from their class. Derived rows are kept in sync by src/lib/classes.ts.
+model Enrollment {
+  id         String       @id @default(cuid())
+  userId     String
+  courseId   String
+  user       User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  course     Course       @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  viaClassId String?
+  viaClass   SchoolClass? @relation(fields: [viaClassId], references: [id], onDelete: Cascade)
+  createdAt  DateTime     @default(now())
+
+  @@unique([userId, courseId])
+}
+
+// Game modes: see src/lib/game-modes.ts.
+model Quiz {
+  id                 String     @id @default(cuid())
+  courseId           String
+  course             Course     @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  title              String
+  description        String?
+  mode               String     @default("classic")
+  secondsPerQuestion Int        @default(20)
+  published          Boolean    @default(false)
+  combo              Boolean    @default(false) // option: streaks multiply points (any mode)
+  lives              Int? // option "survival": game over after this many mistakes; null = off
+  shuffleQuestions   Boolean    @default(false)
+  shuffleAnswers     Boolean    @default(false)
+  difficulty         String     @default("medium") // "easy" | "medium" | "hard": scales the XP reward (src/lib/difficulty.ts)
+  sourceFileName     String?
+  sourceFilePath     String?
+  questions          Question[]
+  attempts           Attempt[]
+  createdAt          DateTime   @default(now())
+  updatedAt          DateTime   @updatedAt
+}
+
+model Question {
+  id          String          @id @default(cuid())
+  quizId      String
+  quiz        Quiz            @relation(fields: [quizId], references: [id], onDelete: Cascade)
+  order       Int
+  prompt        String
+  explanation   String? // shown after every answer
+  wrongFeedback String? // shown only after a wrong answer (or a timeout)
+  imageId       String?
+  image         Media?   @relation(fields: [imageId], references: [id], onDelete: SetNull)
+  choices       Choice[]
+  answers     AttemptAnswer[]
+}
+
+model Choice {
+  id         String          @id @default(cuid())
+  questionId String
+  question   Question        @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  order      Int
+  text       String // may be empty when the choice is an image
+  isCorrect  Boolean         @default(false)
+  imageId    String?
+  image      Media?          @relation(fields: [imageId], references: [id], onDelete: SetNull)
+  answers    AttemptAnswer[]
+}
+
+model Attempt {
+  id             String          @id @default(cuid())
+  quizId         String
+  quiz           Quiz            @relation(fields: [quizId], references: [id], onDelete: Cascade)
+  userId         String
+  user           User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  score          Int             @default(0)
+  correctCount   Int             @default(0)
+  totalQuestions Int
+  startedAt      DateTime        @default(now())
+  completedAt    DateTime?
+  clientId       String?         @unique // set for runs played offline, so a resync can't create duplicates
+  xpEarned       Int             @default(0)
+  rewards        String? // JSON RewardSummary shown on the results screen
+  answers        AttemptAnswer[]
+}
+
+model AttemptAnswer {
+  id         String   @id @default(cuid())
+  attemptId  String
+  attempt    Attempt  @relation(fields: [attemptId], references: [id], onDelete: Cascade)
+  questionId String
+  question   Question @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  choiceId   String?
+  choice     Choice?  @relation(fields: [choiceId], references: [id], onDelete: SetNull)
+  isCorrect  Boolean
+  points     Int
+  timeMs     Int
+  claim      Boolean? // true-or-false mode: what the student said about the proposed answer (choiceId)
+  createdAt  DateTime @default(now()) // answer order, for combo streaks
+
+  @@unique([attemptId, questionId])
+}
