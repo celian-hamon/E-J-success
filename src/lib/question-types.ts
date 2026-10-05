@@ -18,7 +18,7 @@ export function questionType(value: string): QuestionType {
 }
 
 export const MAX_CHOICES = 6; // multiple choice: answer keys A–F
-export const MAX_ITEMS = 8; // order / categorize
+export const MAX_ITEMS = 12; // order / categorize
 export const MAX_CATEGORIES = 4;
 export const MAX_ZONES = 6;
 

@@ -160,8 +160,8 @@ are hidden with CSS, see `data-for` in `globals.css`).
 |---|---|---|
 | **QCM** (`choice`) | picks one answer out of 2–6 | `Choice` rows, one `isCorrect` |
 | **Zone à cliquer** (`hotspot`) | clicks the right zone of the question image | `Question.data.zones` (rectangles drawn in the editor, `ZoneEditor.tsx`) |
-| **Remettre dans l'ordre** (`order`) | puts 2–8 items back in order (drag, or ↑ ↓) | `Choice` rows; `order` is the right position |
-| **Classer** (`categorize`) | sorts 2–8 items into 2–4 categories | `Question.data.categories` + `Choice.group` |
+| **Remettre dans l'ordre** (`order`) | puts 2–12 items back in order (drag, or ↑ ↓) | `Choice` rows; `order` is the right position |
+| **Classer** (`categorize`) | sorts 2–12 items into 2–4 categories | `Question.data.categories` + `Choice.group` |
 | **Valeur numérique** (`numeric`) | types a number (`0,17`, `37 674`, `8e-3`, `8×10^-3`) | `Question.data`: `answer`, `tolerance`, `unit` |
 
 Grading is all-or-nothing and happens on the server (`gradeAnswer`): the page never receives zones, positions,
