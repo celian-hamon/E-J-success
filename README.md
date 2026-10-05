@@ -44,6 +44,10 @@ A **class** (6e A, Terminale B…) groups students and the courses they take tog
 - Every student in a class automatically has access to all of the class's courses. Under the hood these are enrollments marked `viaClassId`, kept in sync on every change, so the access rules, pet, leaderboards and offline cache need no special case.
 - Individual enrollments (options, extra courses) are still done from the course page. They're never removed by a class change, and the course page marks which students come "via" a class.
 - Deleting a class keeps its students (with no class) and removes only the access it granted.
+- **Teachers** can be assigned to any number of classes (class page → "Enseignants", table `ClassTeacher`). A teacher
+  manages the courses they're the named teacher of, plus every course of their classes (`managedCoursesWhere` /
+  `canManageCourse` in `src/lib/auth.ts`). On `/teacher`, a class switcher filters their courses; the last class picked
+  is remembered in a cookie.
 
 ## Languages (i18n)
 
@@ -88,7 +92,7 @@ Missed days are computed lazily on each visit (`syncPet`), so there's no cron jo
 | Role    | Home       | Can do |
 |---------|------------|--------|
 | Admin   | `/admin`   | Create accounts and courses, assign a teacher to each course, assign students to courses (pick from a list or paste emails), and everything a teacher can do |
-| Teacher | `/teacher` | For courses they teach: upload a PDF to generate a quiz, edit questions, choose the game mode, publish, and see results |
+| Teacher | `/teacher` | For courses they teach or that belong to their classes (switch class at the top): upload a PDF to generate a quiz, edit questions, choose the game mode, publish, and see results |
 | Student | `/student` | See their assigned courses, play the published quizzes, and review their answers with explanations |
 
 ## How a quiz is made
@@ -129,15 +133,44 @@ A quiz can also be imported from a JSON file (course page → "Import a quiz (JS
 ```
 
 - The file may also be just the `questions` array.
-- 2 to 6 choices per question, exactly one correct: `correctIndex` (0-based) or `"correct": true` on one choice.
+- A question without `"type"` is multiple choice: 2 to 6 choices, exactly one correct: `correctIndex` (0-based) or
+  `"correct": true` on one choice. The other types (see [Question types](#question-types)) look like this:
+
+```json
+{ "type": "hotspot", "prompt": "Cliquez sur le pancréas.", "image": "data:…", "zones": [{ "x": 0.38, "y": 0.45, "w": 0.44, "h": 0.08 }] }
+{ "type": "order", "prompt": "…", "items": ["Bouche", "Œsophage", { "text": "Estomac", "image": "…" }] }
+{ "type": "categorize", "prompt": "…", "categories": ["Oses", "Osides"], "items": [{ "text": "Glucose", "category": "Oses" }, { "text": "Amidon", "category": 1 }] }
+{ "type": "numeric", "prompt": "…", "answer": 37674, "tolerance": 100, "unit": "J" }
+```
+
+  Zones are fractions of the image (top-left corner `x`, `y`, size `w`, `h`); `items` are written in the right order;
+  a category is given by name or 0-based index; `tolerance` (default 0) is the accepted ± margin.
 - `image` (question or choice) is base64, as a data URL or bare. PNG, JPEG, WebP, GIF or AVIF, 10 MB max each;
   images go through the same re-encoding as uploads. A choice can be an image with no text.
-- `mode`, `difficulty`, `secondsPerQuestion` are optional; the form's choices apply when the file doesn't set them.
+- `mode`, `difficulty`, `secondsPerQuestion` and the options `combo` (true/false), `lives` (1 to 10 for survival, `null` for
+  off), `shuffleQuestions`, `shuffleAnswers` are optional; the form's choices apply when the file doesn't set them.
 - The whole file is validated before anything is saved; errors name the question and answer at fault.
+
+## Question types
+
+Defined in `src/lib/question-types.ts`; picked per question in the editor (fields that don't apply to the chosen type
+are hidden with CSS, see `data-for` in `globals.css`).
+
+| Type | The student… | Stored as |
+|---|---|---|
+| **QCM** (`choice`) | picks one answer out of 2–6 | `Choice` rows, one `isCorrect` |
+| **Zone à cliquer** (`hotspot`) | clicks the right zone of the question image | `Question.data.zones` (rectangles drawn in the editor, `ZoneEditor.tsx`) |
+| **Remettre dans l'ordre** (`order`) | puts 2–8 items back in order (drag, or ↑ ↓) | `Choice` rows; `order` is the right position |
+| **Classer** (`categorize`) | sorts 2–8 items into 2–4 categories | `Question.data.categories` + `Choice.group` |
+| **Valeur numérique** (`numeric`) | types a number (`0,17`, `37 674`, `8e-3`, `8×10^-3`) | `Question.data`: `answer`, `tolerance`, `unit` |
+
+Grading is all-or-nothing and happens on the server (`gradeAnswer`): the page never receives zones, positions,
+categories or expected values. The student's answer is kept in `AttemptAnswer.response` for the results page.
+Every type works in every game mode; true-or-false only changes multiple-choice questions.
 
 ## Game modes
 
-Defined in `src/lib/game-modes.ts`. They all use the same multiple-choice questions, so any quiz can be played in any mode:
+Defined in `src/lib/game-modes.ts`. Every mode works with every question type, so any quiz can be played in any mode:
 
 | Mode | Rules |
 |---|---|

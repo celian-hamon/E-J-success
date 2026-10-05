@@ -10,11 +10,14 @@ import Flash from "@/components/Flash";
 import Avatar from "@/components/Avatar";
 import WeekdayPicker, { ClassDaysLabel } from "@/components/WeekdayPicker";
 import FilterList from "@/components/FilterList";
+import ConfirmButton from "@/components/ConfirmButton";
 import { createCourse } from "../../actions";
 import {
   addCoursesToClass,
   addStudentsToClass,
+  addTeachersToClass,
   deleteClass,
+  removeTeacherFromClass,
   removeCourseFromClass,
   removeStudentFromClass,
   updateClass,
@@ -34,6 +37,7 @@ export default async function ClassPage({ params, searchParams }: Props) {
     where: { id },
     include: {
       students: { orderBy: { name: "asc" }, select: { id: true, name: true, email: true, avatar: true, xp: true } },
+      teachers: { orderBy: { user: { name: "asc" } }, select: { user: { select: { id: true, name: true, email: true, avatar: true } } } },
       courses: {
         include: { course: { select: { id: true, code: true, title: true, classDays: true, teacher: { select: { name: true } } } } },
         orderBy: { course: { code: "asc" } },
@@ -60,8 +64,14 @@ export default async function ClassPage({ params, searchParams }: Props) {
         classLinks: { select: { class: { select: { name: true } } } },
       },
     }),
-    db.user.findMany({ where: { role: "TEACHER" }, orderBy: { name: "asc" }, select: { id: true, name: true } }),
+    db.user.findMany({
+      where: { role: "TEACHER" },
+      orderBy: { name: "asc" },
+      select: { id: true, name: true, email: true, teaching: { select: { class: { select: { name: true } } } } },
+    }),
   ]);
+  const assigned = new Set(cls.teachers.map((ct) => ct.user.id));
+  const otherTeachers = teachers.filter((tt) => !assigned.has(tt.id));
 
   return (
     <>
@@ -108,6 +118,47 @@ export default async function ClassPage({ params, searchParams }: Props) {
                   </tbody>
                 </table>
               </div>
+            )}
+          </section>
+
+          <section className="panel glass">
+            <h2>{t("teachersTitle")}</h2>
+            <p className="muted" style={{ marginTop: -6, fontSize: 14 }}>{t("teachersHint")}</p>
+            {cls.teachers.length === 0 ? (
+              <div className="empty">{t("noTeachers")}</div>
+            ) : (
+              <div className="stack" style={{ gap: 8 }}>
+                {cls.teachers.map(({ user: tt }) => (
+                  <div key={tt.id} className="meal-row">
+                    <Avatar avatar={tt.avatar} size={34} />
+                    <div>
+                      <strong style={{ fontWeight: 400 }}>{tt.name}</strong>
+                      <div className="muted" style={{ fontSize: 13 }}>{tt.email}</div>
+                    </div>
+                    <form action={removeTeacherFromClass}>
+                      <input type="hidden" name="classId" value={cls.id} />
+                      <input type="hidden" name="userId" value={tt.id} />
+                      <button className="btn btn-sm btn-danger" type="submit">{tc("remove")}</button>
+                    </form>
+                  </div>
+                ))}
+              </div>
+            )}
+            {otherTeachers.length > 0 && (
+              <form className="form" action={addTeachersToClass} style={{ marginTop: 14 }}>
+                <input type="hidden" name="classId" value={cls.id} />
+                <FilterList
+                  name="teacherId"
+                  placeholder={t("searchTeachers")}
+                  emptyText={t("allTeachersAssigned")}
+                  items={otherTeachers.map((tt) => ({
+                    id: tt.id,
+                    label: tt.name,
+                    hint: [tt.email, ...tt.teaching.map((x) => x.class.name)].join(" · "),
+                  }))}
+                />
+                <button className="btn btn-bright btn-sm" type="submit">{t("addTeachersSubmit")}</button>
+              </form>
             )}
           </section>
 
@@ -238,7 +289,9 @@ export default async function ClassPage({ params, searchParams }: Props) {
             </form>
             <form action={deleteClass} style={{ marginTop: 14 }}>
               <input type="hidden" name="id" value={cls.id} />
-              <button className="btn btn-sm btn-danger" type="submit">{t("delete")}</button>
+              <ConfirmButton className="btn btn-sm btn-danger" message={tc("confirmDeleteClass", { name: cls.name })}>
+                {t("delete")}
+              </ConfirmButton>
             </form>
           </section>
         </div>

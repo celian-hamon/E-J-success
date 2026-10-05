@@ -7,6 +7,7 @@ import { ROLE_HOME, type Role } from "@/lib/roles";
 import { logout } from "@/app/actions/auth";
 import { Brand } from "./Brand";
 import Avatar from "./Avatar";
+import NavLinks from "./NavLinks";
 
 type NavKey = "overview" | "classes" | "courses" | "users" | "quizzes" | "myCourses" | "pet" | "leaderboard";
 
@@ -39,13 +40,7 @@ export default async function Nav() {
       <Brand href={user ? ROLE_HOME[user.role] : "/"} />
       {user ? (
         <>
-          <nav className="nav-links" aria-label={t("primary")}>
-            {LINKS[user.role].map((l) => (
-              <Link key={l.href} href={l.href}>
-                {t(l.key)}
-              </Link>
-            ))}
-          </nav>
+          <NavLinks label={t("primary")} links={LINKS[user.role].map((l) => ({ href: l.href, label: t(l.key) }))} />
           <div className="nav-user">
             <Link href="/profile" className="nav-avatar" title={t("profile")}>
               <Avatar avatar={profile?.avatar ?? null} size={32} level={user.role === "STUDENT" ? levelInfo(profile?.xp ?? 0).level : undefined} />

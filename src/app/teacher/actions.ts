@@ -11,8 +11,17 @@ import { getManagedQuiz } from "@/lib/quiz-access";
 import { deleteQuizPdf } from "@/lib/uploads";
 import { isDifficulty } from "@/lib/difficulty";
 import { isUpload, MediaError, releaseMedia, saveImage } from "@/lib/media";
-
-const MAX_CHOICES = 6;
+import {
+  cleanZone,
+  MAX_CATEGORIES,
+  MAX_CHOICES,
+  MAX_ITEMS,
+  MAX_ZONES,
+  parseNumber,
+  questionType,
+  type QuestionData,
+  type Zone,
+} from "@/lib/question-types";
 
 async function requireQuiz(quizId: string) {
   const user = await requireRole("TEACHER", "ADMIN");
@@ -37,7 +46,7 @@ export async function updateQuizSettings(formData: FormData) {
   const p = `/teacher/quizzes/${quiz.id}`;
   const SettingsInput = z.object({
     title: z.string().trim().min(1, t("titleRequired")),
-    description: z.string().trim().transform((v) => v || null),
+    description: z.string().trim().optional().transform((v) => v || null),
     mode: z.enum(GAME_MODE_KEYS as [GameMode, ...GameMode[]]),
     secondsPerQuestion: z.coerce.number().int().min(5).max(300),
   });
@@ -100,18 +109,56 @@ export async function saveQuestion(formData: FormData) {
     const remove = formData.get(removeField) === "on";
     return { upload, current, keep: remove || upload ? null : current, drop: remove || upload ? current : null };
   };
+  const type = questionType(String(formData.get("type") ?? "choice"));
   const questionImage = imagePlan("image", "removeImage", existing?.imageId ?? null);
-  const slots = Array.from({ length: MAX_CHOICES }, (_, i) => ({
+  // Choice rows: the answers (choice) or the items to order / sort. Hotspot and numeric have none.
+  const slotCount = type === "choice" ? MAX_CHOICES : type === "order" || type === "categorize" ? MAX_ITEMS : 0;
+  const slots = Array.from({ length: slotCount }, (_, i) => ({
     slot: i,
     text: String(formData.get(`choice${i}`) ?? "").trim(),
+    group: String(formData.get(`group${i}`) ?? ""),
     image: imagePlan(`choiceImage${i}`, `removeChoiceImage${i}`, existing?.choices[i]?.imageId ?? null),
   }));
   // A choice counts if it has text or an image (so answers can be pictures only).
   const filled = slots.filter((c) => c.text || c.image.keep || c.image.upload);
 
   if (!prompt) flash(p, "error", t("needPrompt"));
-  if (filled.length < 2) flash(p, "error", t("needChoices"));
-  if (!filled.some((c) => c.slot === correctSlot)) flash(p, "error", t("needCorrect"));
+  let data: QuestionData | null = null;
+  let groupOf: (slot: (typeof slots)[number]) => number | null = () => null;
+  if (type === "choice") {
+    if (filled.length < 2) flash(p, "error", t("needChoices"));
+    if (!filled.some((c) => c.slot === correctSlot)) flash(p, "error", t("needCorrect"));
+  } else if (type === "order") {
+    if (filled.length < 2) flash(p, "error", t("needItems"));
+  } else if (type === "categorize") {
+    // Empty category fields are skipped; items point at the remaining ones by index.
+    const typed = Array.from({ length: MAX_CATEGORIES }, (_, g) => String(formData.get(`category${g}`) ?? "").trim());
+    const kept = typed.flatMap((name, g) => (name ? [g] : []));
+    if (kept.length < 2) flash(p, "error", t("needCategories"));
+    if (filled.length < 2) flash(p, "error", t("needItems"));
+    if (filled.some((c) => !kept.includes(Number(c.group)) || c.group === "")) flash(p, "error", t("badCategory"));
+    data = { categories: kept.map((g) => typed[g]) };
+    groupOf = (c) => kept.indexOf(Number(c.group));
+  } else if (type === "numeric") {
+    const answer = parseNumber(String(formData.get("answer") ?? ""));
+    const rawTolerance = String(formData.get("tolerance") ?? "").trim();
+    const tolerance = rawTolerance ? parseNumber(rawTolerance) : 0;
+    if (answer === null) flash(p, "error", t("needAnswer"));
+    if (tolerance === null || tolerance < 0) flash(p, "error", t("badTolerance"));
+    data = { answer: answer!, tolerance: tolerance!, unit: String(formData.get("unit") ?? "").trim() || null };
+  } else if (type === "hotspot") {
+    let zones: Zone[] = [];
+    try {
+      const raw = JSON.parse(String(formData.get("zones") ?? "[]"));
+      zones = (Array.isArray(raw) ? raw : []).map(cleanZone).filter((z): z is Zone => z !== null).slice(0, MAX_ZONES);
+    } catch {
+      /* treated as no zones */
+    }
+    if (!questionImage.keep && !questionImage.upload) flash(p, "error", t("needHotspotImage"));
+    if (zones.length === 0) flash(p, "error", t("needZone"));
+    data = { zones };
+  }
+  const dataJson = data ? JSON.stringify(data) : null;
 
   // Validation passed: now store the new images.
   const saved: string[] = [];
@@ -122,12 +169,18 @@ export async function saveQuestion(formData: FormData) {
     return media.id;
   };
   let questionImageId: string | null;
-  let choices: { order: number; text: string; isCorrect: boolean; imageId: string | null }[];
+  let choices: { order: number; text: string; isCorrect: boolean; group: number | null; imageId: string | null }[];
   try {
     questionImageId = await store(questionImage.upload, questionImage.keep);
     choices = [];
     for (const [order, c] of filled.entries()) {
-      choices.push({ order, text: c.text, isCorrect: c.slot === correctSlot, imageId: await store(c.image.upload, c.image.keep) });
+      choices.push({
+        order, // for "order" questions, this is the right position
+        text: c.text,
+        isCorrect: type === "choice" && c.slot === correctSlot,
+        group: groupOf(c),
+        imageId: await store(c.image.upload, c.image.keep),
+      });
     }
   } catch (err) {
     for (const id of saved) await releaseMedia(id);
@@ -137,13 +190,26 @@ export async function saveQuestion(formData: FormData) {
   if (!existing) {
     const order = await db.question.count({ where: { quizId: quiz.id } });
     await db.question.create({
-      data: { quizId: quiz.id, order, prompt, explanation, wrongFeedback, imageId: questionImageId, choices: { create: choices } },
+      data: {
+        quizId: quiz.id,
+        order,
+        type,
+        data: dataJson,
+        prompt,
+        explanation,
+        wrongFeedback,
+        imageId: questionImageId,
+        choices: { create: choices },
+      },
     });
   } else {
     // Update choices in place so past answers keep pointing at the right choice.
     const leftover = existing.choices.slice(choices.length);
     await db.$transaction([
-      db.question.update({ where: { id: existing.id }, data: { prompt, explanation, wrongFeedback, imageId: questionImageId } }),
+      db.question.update({
+        where: { id: existing.id },
+        data: { type, data: dataJson, prompt, explanation, wrongFeedback, imageId: questionImageId },
+      }),
       ...choices.map((c, i) =>
         existing.choices[i]
           ? db.choice.update({ where: { id: existing.choices[i].id }, data: c })

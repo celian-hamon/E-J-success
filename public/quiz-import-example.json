@@ -1,6 +1,6 @@
 {
   "title": "Exemple d’import JSON",
-  "description": "Montre le format : texte, LaTeX, images en base64 dans les questions et les réponses.",
+  "description": "Montre le format : QCM, zone à cliquer, remise en ordre, classement et valeur numérique, avec LaTeX et images en base64.",
   "mode": "classic",
   "difficulty": "easy",
   "secondsPerQuestion": 20,
@@ -48,6 +48,66 @@
           "correct": true
         }
       ]
+    },
+    {
+      "type": "hotspot",
+      "prompt": "Cliquez sur le carré bleu.",
+      "image": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAPAAAABQCAYAAAAnSfh8AAAACXBIWXMAAAsTAAALEwEAmpwYAAACqUlEQVR4nO3bwY0bQRQD0Q2Hkfg8ITow5iIHoMsCOvDLeAQ6gQFqikOpf35ERERERERERES+MU1ezvsz+O3zy98/L+f9Gfz6+T19OX17BgD+8MUE4M9eTADuRy8mAAN42gwAXAAvqz0DAzjDes/AAGbg53u/rwEMYAA/exABrEJ/5crtG7gA9g28BxHAZeBv/J3ZiAXgqNB7EAHMwDnwTWvEAvC8FvsGLoDXZlWhAZwDhvUzEoDnlrVCF8Br0xqxAJyDxx85AMzAzx5EADPwvA6r0AXwuhKr0ADOAbOq0ACe29WIVQCvDWvEAnAOmNaIBeCTx2WGApiB9yACuAy8rsMqNIBzoBar0ACem1WFLoDXdjViATgHLGvEAvDctEasAvjicaEfwGHgPYgAZuAcqMQqNIDntViFLoDXZlWhAZwDhjViAXhuWSNWAbw2rRELwDl4XOgHMAM/exABzMDzOqxCF8DrSqxCAzgHzKpCA3huVyNWAbw2rBELwDlgWiMWgE8eF/oLYAbegwjgMvC6DqvQAM6BWqxCA3huVhW6AF7b1YgF4BywrBELwHPTGrEK4IvHhX4Ah4H3IAKYgXOgEqvQAJ7XYhW6AF6bVYUGcA4Y1ogF4LlljVgF8Nq0RiwA5+BxoR/ADPzsQQQwA8/rsApdAK8rsQoN4BwwqwoN4LldjVgF8NqwRiwA54BpjVgAPnlc6C+AGXgPIoDLwOs6rEIDOAdqsQoN4LlZVegCeG1XIxaAc8CyRiwAz01rxCqALx4X+gEcBt6DCGAGzoFKrEIDeF6LVegCeG1WFRrAOWBYIxaA55Y1YhXAa9MasQCcg8eFfgAz8LMHEcAMPK/DKnQBvK7EKjSAc8CsKjSA53Y1YhXAa8MasQCc/2HEEhERERERERER+TmUf34fQ+D7ZoxvAAAAAElFTkSuQmCC",
+      "zones": [
+        {
+          "x": 0.6875,
+          "y": 0.0625,
+          "w": 0.29,
+          "h": 0.875
+        }
+      ],
+      "explanation": "Les zones sont des rectangles en fractions de l’image : x, y (coin haut gauche), w, h (taille)."
+    },
+    {
+      "type": "order",
+      "prompt": "Rangez ces oses du plus petit au plus grand nombre d’atomes de carbone.",
+      "items": [
+        "Triose",
+        "Tétrose",
+        "Pentose",
+        "Hexose"
+      ],
+      "explanation": "Les éléments sont écrits dans le bon ordre ; l’élève les reçoit mélangés."
+    },
+    {
+      "type": "categorize",
+      "prompt": "Classez ces glucides.",
+      "categories": [
+        "Oses",
+        "Osides"
+      ],
+      "items": [
+        {
+          "text": "Glucose",
+          "category": "Oses"
+        },
+        {
+          "text": "Fructose",
+          "category": 0
+        },
+        {
+          "text": "Saccharose",
+          "category": "Osides"
+        },
+        {
+          "text": "Amidon",
+          "category": 1
+        }
+      ],
+      "explanation": "La catégorie se donne par son nom ou son numéro (à partir de 0)."
+    },
+    {
+      "type": "numeric",
+      "prompt": "Combien valent 25 °C en kelvins ?",
+      "answer": 298,
+      "tolerance": 0,
+      "unit": "K",
+      "explanation": "$T(\\mathrm{K}) = t(°\\mathrm{C}) + 273 = 298\\ \\mathrm{K}$. La marge (tolerance) accepte les arrondis."
     }
   ]
 }

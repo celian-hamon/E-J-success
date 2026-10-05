@@ -21,6 +21,7 @@ model User {
   attempts     Attempt[]
   classId      String? // students belong to at most one class (see src/lib/classes.ts)
   schoolClass  SchoolClass? @relation(fields: [classId], references: [id], onDelete: SetNull)
+  teaching     ClassTeacher[] // teachers: the classes they're assigned to (any number)
 
   // Meta progression (see src/lib/gamification/)
   avatar            String? // JSON AvatarConfig; null = default look
@@ -130,9 +131,22 @@ model SchoolClass {
   level       String?
   schoolYear  String?
   students    User[]
+  teachers    ClassTeacher[]
   courses     ClassCourse[]
   enrollments Enrollment[]
   createdAt   DateTime      @default(now())
+}
+
+// A teacher assigned to a class: they manage the quizzes of every course of that class
+// (on top of the courses they're the named teacher of). See canManageCourse in src/lib/auth.ts.
+model ClassTeacher {
+  classId String
+  userId  String
+  class   SchoolClass @relation(fields: [classId], references: [id], onDelete: Cascade)
+  user    User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([classId, userId])
+  @@index([userId])
 }
 
 model ClassCourse {
@@ -187,6 +201,10 @@ model Question {
   quizId      String
   quiz        Quiz            @relation(fields: [quizId], references: [id], onDelete: Cascade)
   order       Int
+  // "choice" | "hotspot" | "order" | "categorize" | "numeric" (see src/lib/question-types.ts).
+  // Choice rows are the answers, or the items to put in order / to sort; `data` holds the rest.
+  type          String   @default("choice")
+  data          String? // JSON: hotspot zones, categories, or numeric answer/tolerance/unit
   prompt        String
   explanation   String? // shown after every answer
   wrongFeedback String? // shown only after a wrong answer (or a timeout)
@@ -202,7 +220,8 @@ model Choice {
   question   Question        @relation(fields: [questionId], references: [id], onDelete: Cascade)
   order      Int
   text       String // may be empty when the choice is an image
-  isCorrect  Boolean         @default(false)
+  isCorrect  Boolean         @default(false) // "choice" questions only
+  group      Int? // "categorize" questions: index of the item's category in Question.data
   imageId    String?
   image      Media?          @relation(fields: [imageId], references: [id], onDelete: SetNull)
   answers    AttemptAnswer[]
@@ -237,6 +256,7 @@ model AttemptAnswer {
   points     Int
   timeMs     Int
   claim      Boolean? // true-or-false mode: what the student said about the proposed answer (choiceId)
+  response   String? // JSON answer to the other question types: point, order, categories or typed value
   createdAt  DateTime @default(now()) // answer order, for combo streaks
 
   @@unique([attemptId, questionId])

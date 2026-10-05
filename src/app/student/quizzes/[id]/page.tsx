@@ -7,7 +7,8 @@ import { blitzSeconds, isGameMode, playConfig } from "@/lib/game-modes";
 import { shuffle } from "@/lib/difficulty";
 import { mediaUrl } from "@/lib/media";
 import PageHead from "@/components/PageHead";
-import QuizPlayer, { type PlayerQuiz } from "./QuizPlayer";
+import { parseData, questionType } from "@/lib/question-types";
+import QuizPlayer, { type PlayerQuestion, type PlayerQuiz } from "./QuizPlayer";
 
 type Props = { params: Promise<{ id: string }> };
 
@@ -29,9 +30,11 @@ export default async function PlayQuizPage({ params }: Props) {
         orderBy: { order: "asc" },
         select: {
           id: true,
+          type: true,
+          data: true,
           prompt: true,
           imageId: true,
-          choices: { orderBy: { order: "asc" }, select: { id: true, text: true, isCorrect: true, imageId: true } },
+          choices: { orderBy: { order: "asc" }, select: { id: true, text: true, isCorrect: true, imageId: true, order: true } },
         },
       },
     },
@@ -52,21 +55,27 @@ export default async function PlayQuizPage({ params }: Props) {
     globalSeconds: cfg.timer === "global" ? blitzSeconds(quiz.questions.length, quiz.secondsPerQuestion) : null,
     difficulty: quiz.difficulty,
     // Shuffling happens here, so every visit gets a new order. Grading uses ids, not positions.
-    questions: (quiz.shuffleQuestions ? shuffle(quiz.questions) : quiz.questions).map((q) => {
-      // isCorrect never leaves the server: only ids and texts are sent to the browser.
-      const ordered = quiz.shuffleAnswers ? shuffle(q.choices) : q.choices;
+    questions: (quiz.shuffleQuestions ? shuffle(quiz.questions) : quiz.questions).map((q): PlayerQuestion => {
+      const type = questionType(q.type);
+      const data = parseData(q.data);
+      // Answers never leave the server: no isCorrect, no positions, no categories, no zones, no value.
+      // Items to put in order are always mixed (and never shown already in order).
+      let ordered = quiz.shuffleAnswers || type === "order" || type === "categorize" ? shuffle(q.choices) : q.choices;
+      for (let i = 0; type === "order" && i < 5 && ordered.every((c, j) => j === 0 || c.order > ordered[j - 1].order); i++) {
+        ordered = shuffle(q.choices);
+      }
       const choices = ordered.map(({ id, text, imageId }) => ({ id, text, image: mediaUrl(imageId) }));
       const image = mediaUrl(q.imageId);
-      if (!cfg.trueFalse) return { id: q.id, prompt: q.prompt, image, choices };
+      const base = { id: q.id, type, prompt: q.prompt, image, choices };
+      if (type === "categorize") return { ...base, categories: data.categories ?? [] };
+      if (type === "numeric") return { ...base, unit: data.unit ?? null };
+      if (type !== "choice" || !cfg.trueFalse) return base;
       // True-or-false: propose the right answer half the time, otherwise a random wrong one.
       const right = q.choices.find((c) => c.isCorrect);
       const wrong = q.choices.filter((c) => !c.isCorrect);
       const shown = !right || (wrong.length && Math.random() < 0.5) ? wrong[Math.floor(Math.random() * wrong.length)] : right;
       return {
-        id: q.id,
-        prompt: q.prompt,
-        image,
-        choices,
+        ...base,
         statement: shown ? { choiceId: shown.id, text: shown.text, image: mediaUrl(shown.imageId) } : undefined,
       };
     }),

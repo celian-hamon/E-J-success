@@ -5,7 +5,15 @@ export const OUTBOX_DB = "ejs-offline";
 export const OUTBOX_STORE = "outbox";
 export const SYNC_TAG = "ejs-outbox";
 
-export type OfflineAnswer = { questionId: string; choiceId: string | null; timeMs: number; claim?: boolean | null };
+import type { AnswerResponse } from "../question-types";
+
+export type OfflineAnswer = {
+  questionId: string;
+  choiceId: string | null;
+  timeMs: number;
+  claim?: boolean | null;
+  response?: AnswerResponse | null; // hotspot, order, categorize, numeric questions
+};
 export type OfflineRun = {
   clientId: string;
   userId: string;

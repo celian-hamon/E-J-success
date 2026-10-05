@@ -3,6 +3,7 @@ import { db } from "./db";
 import { isEnrolled } from "./auth";
 import { blitzSeconds, comboMultiplier, playConfig, scoreAnswer } from "./game-modes";
 import { awardAttempt } from "./gamification/engine";
+import { isRightResponse, parseData, questionType, solutionFor, type Solution } from "./question-types";
 
 // Answers are always graded on the server, both live (server actions) and when an
 // offline run is synced later (/api/sync/attempts).
@@ -30,6 +31,7 @@ export const GRADING_QUIZ_FIELDS = { mode: true, secondsPerQuestion: true, combo
 export type GradeResult = {
   correct: boolean;
   correctChoiceId: string | null;
+  solution?: Solution | null; // the right answer to the other question types
   points: number;
   explanation: string | null;
   wrongFeedback?: string | null; // only sent back after a wrong answer
@@ -47,7 +49,7 @@ export async function gradeAnswer(
   questionId: string,
   choiceId: string | null,
   rawTimeMs: number,
-  opts: { claim?: boolean | null; enforceClock?: boolean } = {},
+  opts: { claim?: boolean | null; response?: unknown; enforceClock?: boolean } = {},
 ): Promise<GradeResult | null> {
   const cfg = playConfig(attempt.quiz);
 
@@ -76,24 +78,45 @@ export async function gradeAnswer(
   let streakBefore = 0;
   for (let i = previous.length - 1; i >= 0 && previous[i].isCorrect; i--) streakBefore++;
 
-  const correctChoice = question.choices.find((c) => c.isCorrect) ?? null;
-  const picked = choiceId ? question.choices.find((c) => c.id === choiceId) ?? null : null;
-  // True-or-false: `picked` is the proposed answer and `claim` is the student's verdict.
-  const claim = cfg.trueFalse ? (opts.claim ?? null) : null;
-  const correct = cfg.trueFalse ? picked !== null && claim !== null && picked.isCorrect === claim : Boolean(picked?.isCorrect);
+  const type = questionType(question.type);
+  const isChoice = type === "choice";
+  const correctChoice = isChoice ? (question.choices.find((c) => c.isCorrect) ?? null) : null;
+  const picked = isChoice && choiceId ? (question.choices.find((c) => c.id === choiceId) ?? null) : null;
+  // True-or-false only applies to multiple choice: `picked` is the proposed answer and `claim` the verdict.
+  const claim = cfg.trueFalse && isChoice ? (opts.claim ?? null) : null;
+  // The other types send a `response` (point clicked, order, categories, typed value).
+  const solution = isChoice ? null : solutionFor(type, parseData(question.data), question.choices);
+  const response = isChoice ? null : (opts.response ?? null);
+  const correct = solution
+    ? isRightResponse(solution, response)
+    : cfg.trueFalse
+      ? picked !== null && claim !== null && picked.isCorrect === claim
+      : Boolean(picked?.isCorrect);
+  // Stored for the results page; capped so a crafted request can't bloat the database.
+  const storedResponse = response === null ? null : JSON.stringify(response).slice(0, 2000);
 
   const limitMs = cfg.timer === "global" ? globalLimitMs : attempt.quiz.secondsPerQuestion * 1000;
   const timeMs = Math.min(limitMs, Math.max(0, Math.round(rawTimeMs)));
   const points = scoreAnswer(cfg, correct, timeMs, limitMs, streakBefore);
 
   await db.attemptAnswer.create({
-    data: { attemptId: attempt.id, questionId: question.id, choiceId: picked?.id ?? null, claim, isCorrect: correct, points, timeMs },
+    data: {
+      attemptId: attempt.id,
+      questionId: question.id,
+      choiceId: picked?.id ?? null,
+      claim,
+      response: storedResponse,
+      isCorrect: correct,
+      points,
+      timeMs,
+    },
   });
 
   const livesLeft = cfg.lives ? cfg.lives - wrongSoFar - (correct ? 0 : 1) : undefined;
   return {
     correct,
     correctChoiceId: correctChoice?.id ?? null,
+    solution,
     points,
     explanation: question.explanation,
     wrongFeedback: correct ? null : question.wrongFeedback,

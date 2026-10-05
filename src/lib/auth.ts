@@ -76,12 +76,21 @@ export async function requireRole(...roles: Role[]): Promise<SessionUser> {
   return user;
 }
 
-/** Admins manage every course; teachers manage the courses they're assigned to. */
+/**
+ * Courses a teacher manages: the ones they're the named teacher of, plus every course of
+ * the classes they're assigned to (a teacher can be assigned to any number of classes).
+ */
+export function managedCoursesWhere(teacherId: string) {
+  return {
+    OR: [{ teacherId }, { classLinks: { some: { class: { teachers: { some: { userId: teacherId } } } } } }],
+  };
+}
+
+/** Admins manage every course; teachers manage their courses and their classes' courses. */
 export async function canManageCourse(user: SessionUser, courseId: string) {
   if (user.role === "ADMIN") return true;
   if (user.role !== "TEACHER") return false;
-  const course = await db.course.findUnique({ where: { id: courseId }, select: { teacherId: true } });
-  return course?.teacherId === user.id;
+  return (await db.course.count({ where: { id: courseId, ...managedCoursesWhere(user.id) } })) > 0;
 }
 
 export async function isEnrolled(userId: string, courseId: string) {

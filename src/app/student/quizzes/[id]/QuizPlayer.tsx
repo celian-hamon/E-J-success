@@ -9,14 +9,21 @@ import type { GameMode, PlayConfig } from "@/lib/game-modes";
 import { queueRun, type OfflineAnswer } from "@/lib/offline/outbox";
 import { isDifficulty } from "@/lib/difficulty";
 import RichText from "@/components/RichText";
+import type { AnswerResponse, QuestionType } from "@/lib/question-types";
+import { CategorizeInput, HotspotInput, NumericInput, OrderInput } from "./QuestionInputs";
 
 export type PlayerQuestion = {
   id: string;
+  type: QuestionType;
   prompt: string;
   image: string | null;
-  choices: { id: string; text: string; image: string | null }[];
+  choices: { id: string; text: string; image: string | null }[]; // answers, or items to order / sort
   statement?: { choiceId: string; text: string; image: string | null }; // true-or-false mode
+  categories?: string[]; // categorize
+  unit?: string | null; // numeric
 };
+
+const INPUTS = { hotspot: HotspotInput, order: OrderInput, categorize: CategorizeInput, numeric: NumericInput };
 
 /** A quiz image; clicking it toggles a larger view. */
 function QuizImage({ src, alt, className }: { src: string; alt: string; className?: string }) {
@@ -76,6 +83,7 @@ export default function QuizPlayer({ quiz }: { quiz: PlayerQuiz }) {
   const [index, setIndex] = useState(0);
   const [picked, setPicked] = useState<string | null>(null);
   const [claim, setClaim] = useState<boolean | null>(null);
+  const [responded, setResponded] = useState(false); // other question types: an answer was sent
   const [result, setResult] = useState<AnswerResult | null>(null);
   const [score, setScore] = useState(0);
   const [lives, setLives] = useState<number | null>(cfg.lives ?? null);
@@ -122,6 +130,7 @@ export default function QuizPlayer({ quiz }: { quiz: PlayerQuiz }) {
     setIndex(i);
     setPicked(null);
     setClaim(null);
+    setResponded(false);
     setResult(null);
     setRemaining(limitMs);
     shownAt.current = performance.now();
@@ -170,24 +179,26 @@ export default function QuizPlayer({ quiz }: { quiz: PlayerQuiz }) {
   }, [gameOver, isLast, index, endGame]);
 
   const answer = useCallback(
-    async (choiceId: string | null, verdict: boolean | null = null) => {
+    async (choiceId: string | null, verdict: boolean | null = null, response: AnswerResponse | null = null) => {
       if (answering.current || phase !== "question") return;
       answering.current = true;
       setPicked(choiceId);
       setClaim(verdict);
+      setResponded(response !== null);
       const timeMs = performance.now() - shownAt.current;
       // True-or-false sends the proposed answer plus the verdict; a timeout sends nothing.
-      const sentChoice = cfg.trueFalse ? (verdict === null ? null : question.statement?.choiceId ?? null) : choiceId;
+      const trueFalse = cfg.trueFalse && question.type === "choice";
+      const sentChoice = trueFalse ? (verdict === null ? null : question.statement?.choiceId ?? null) : choiceId;
 
       const keepOffline = () => {
-        offlineAnswers.current.push({ questionId: question.id, choiceId: sentChoice, timeMs, claim: verdict });
+        offlineAnswers.current.push({ questionId: question.id, choiceId: sentChoice, timeMs, claim: verdict, response });
         setResult(null);
         setPhase("feedback");
       };
 
       if (offline || !attemptId) return keepOffline();
       try {
-        const res = await submitAnswer({ attemptId, questionId: question.id, choiceId: sentChoice, timeMs, claim: verdict });
+        const res = await submitAnswer({ attemptId, questionId: question.id, choiceId: sentChoice, timeMs, claim: verdict, response });
         setResult(res);
         setScore((s) => s + res.points);
         setStreak((s) => (res.correct ? s + 1 : 0));
@@ -239,6 +250,7 @@ export default function QuizPlayer({ quiz }: { quiz: PlayerQuiz }) {
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
       if (phase === "question" && question) {
+        if (question.type !== "choice") return; // their inputs handle the keyboard
         const k = e.key.toUpperCase();
         if (cfg.trueFalse) {
           if (k === "V" || k === "T" || k === "1") answer(null, true);
@@ -329,9 +341,23 @@ export default function QuizPlayer({ quiz }: { quiz: PlayerQuiz }) {
       )}
 
       <h2 className="prompt"><RichText text={question.prompt} /></h2>
-      {question.image && <QuizImage key={question.id} src={question.image} alt={t("questionImage")} />}
+      {/* A hotspot question is answered on its image, so the input shows it. */}
+      {question.image && question.type !== "hotspot" && <QuizImage key={question.id} src={question.image} alt={t("questionImage")} />}
 
-      {cfg.trueFalse && question.statement ? (
+      {question.type !== "choice" ? (
+        (() => {
+          const Input = INPUTS[question.type];
+          return (
+            <Input
+              key={question.id}
+              question={question}
+              locked={phase !== "question"}
+              solution={result?.solution}
+              onSubmit={(r) => answer(null, null, r)}
+            />
+          );
+        })()
+      ) : cfg.trueFalse && question.statement ? (
         <>
           <div className={`statement ${result ? (result.correct ? "correct" : "wrong") : ""}`}>
             <span className="label">{t("proposed")}</span>
@@ -389,7 +415,7 @@ export default function QuizPlayer({ quiz }: { quiz: PlayerQuiz }) {
                     ? result.multiplier && result.multiplier > 1
                       ? t("comboCorrect", { points: result.points, multiplier: result.multiplier })
                       : t("correct", { points: result.points })
-                    : picked === null && claim === null
+                    : picked === null && claim === null && !responded
                       ? t("timeUp")
                       : t("wrong")}
                 </div>
@@ -400,7 +426,7 @@ export default function QuizPlayer({ quiz }: { quiz: PlayerQuiz }) {
                     <p><RichText text={result.wrongFeedback} /></p>
                   </div>
                 )}
-                {cfg.trueFalse && correctText && (
+                {cfg.trueFalse && question.type === "choice" && correctText && (
                   <p>
                     {t("rightAnswerLabel")} <RichText text={correctText} />
                   </p>
@@ -409,7 +435,7 @@ export default function QuizPlayer({ quiz }: { quiz: PlayerQuiz }) {
               </>
             ) : (
               <>
-                <div className="points" style={{ color: "var(--lilac)" }}>{picked === null && claim === null ? t("timeUp") : t("savedOffline")}</div>
+                <div className="points" style={{ color: "var(--lilac)" }}>{picked === null && claim === null && !responded ? t("timeUp") : t("savedOffline")}</div>
                 <p>{t("savedOfflineHint")}</p>
               </>
             )}

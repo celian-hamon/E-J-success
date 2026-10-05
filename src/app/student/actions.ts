@@ -3,6 +3,7 @@
 import { db } from "@/lib/db";
 import { requireRole } from "@/lib/auth";
 import { completeAttempt, gradeAnswer, GRADING_QUIZ_FIELDS, playableQuiz, type GradeResult } from "@/lib/grading";
+import type { AnswerResponse } from "@/lib/question-types";
 
 // The player only learns whether an answer was right after submitting it.
 // Errors carry a short code; the player shows a translated message.
@@ -27,6 +28,7 @@ export async function submitAnswer(input: {
   choiceId: string | null; // null = ran out of time
   timeMs: number;
   claim?: boolean | null; // true-or-false mode
+  response?: AnswerResponse | null; // hotspot, order, categorize, numeric questions
 }): Promise<AnswerResult> {
   const user = await requireRole("STUDENT");
   const attempt = await db.attempt.findUnique({
@@ -36,6 +38,7 @@ export async function submitAnswer(input: {
   if (!attempt || attempt.userId !== user.id || attempt.completedAt) throw new Error("over");
   const result = await gradeAnswer(attempt, input.questionId, input.choiceId, input.timeMs, {
     claim: input.claim,
+    response: input.response,
     enforceClock: true,
   });
   if (!result) throw new Error("over");

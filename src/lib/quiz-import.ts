@@ -1,8 +1,18 @@
 import "server-only";
 import { z } from "zod";
-import { isGameMode, type GameMode } from "./game-modes";
+import { isGameMode, MAX_LIVES, type GameMode } from "./game-modes";
 import { isDifficulty, type Difficulty } from "./difficulty";
 import { MediaError, releaseMedia, saveImageBytes } from "./media";
+import {
+  cleanZone,
+  MAX_CATEGORIES,
+  MAX_CHOICES,
+  MAX_ITEMS,
+  MAX_ZONES,
+  type QuestionData,
+  type QuestionType,
+  type Zone,
+} from "./question-types";
 
 // Quiz import from JSON (format: public/quiz-import-example.json, documented in the README).
 // Images are base64, either a data URL ("data:image/png;base64,…") or the bare base64.
@@ -10,12 +20,11 @@ import { MediaError, releaseMedia, saveImageBytes } from "./media";
 
 export const MAX_IMPORT_BYTES = 25 * 1024 * 1024;
 const MAX_QUESTIONS = 200;
-const MAX_CHOICES = 6; // the question editor has six answer slots
 
 /** A problem in the file. `path` points at the faulty field, e.g. ["questions", 2, "choices", 0]. */
 export class ImportError extends Error {
   constructor(
-    public code: "json" | "format" | "correct" | "emptyChoice" | "base64" | "image",
+    public code: "json" | "format" | "correct" | "emptyChoice" | "base64" | "image" | "category" | "hotspotImage",
     public path: (string | number)[] = [],
     public detail?: string,
     public mediaCode?: MediaError["code"], // why an image was refused, when code is "image"
@@ -33,14 +42,45 @@ const ChoiceInput = z.union([
   z.object({ text: text.default(""), image, correct: z.boolean().optional() }),
 ]);
 
-const QuestionInput = z.object({
-  prompt: text.min(1),
-  image,
-  explanation: optionalText,
-  wrongFeedback: optionalText,
-  choices: z.array(ChoiceInput).min(2).max(MAX_CHOICES),
-  correctIndex: z.number().int().min(0).optional(),
-});
+const ItemInput = z.union([
+  z.string().transform((t) => ({ text: t.trim(), image: null })),
+  z.object({ text: text.default(""), image }),
+]);
+
+const common = { prompt: text.min(1), image, explanation: optionalText, wrongFeedback: optionalText };
+
+// One shape per question type (see src/lib/question-types.ts); no "type" means multiple choice.
+const QuestionInput = z.preprocess(
+  (v) => (v && typeof v === "object" && !Array.isArray(v) && !("type" in v) ? { ...v, type: "choice" } : v),
+  z.discriminatedUnion("type", [
+    z.object({
+      type: z.literal("choice"),
+      ...common,
+      choices: z.array(ChoiceInput).min(2).max(MAX_CHOICES),
+      correctIndex: z.number().int().min(0).optional(),
+    }),
+    z.object({
+      type: z.literal("hotspot"),
+      ...common,
+      // Fractions of the image: x, y = top-left corner; w, h = size.
+      zones: z
+        .array(z.object({ x: z.number().min(0).max(1), y: z.number().min(0).max(1), w: z.number().positive().max(1), h: z.number().positive().max(1) }))
+        .min(1)
+        .max(MAX_ZONES),
+    }),
+    z.object({ type: z.literal("order"), ...common, items: z.array(ItemInput).min(2).max(MAX_ITEMS) }),
+    z.object({
+      type: z.literal("categorize"),
+      ...common,
+      categories: z.array(text.min(1)).min(2).max(MAX_CATEGORIES),
+      items: z
+        .array(z.object({ text: text.default(""), image, category: z.union([z.number().int().min(0), z.string()]) }))
+        .min(2)
+        .max(MAX_ITEMS),
+    }),
+    z.object({ type: z.literal("numeric"), ...common, answer: z.number(), tolerance: z.number().min(0).default(0), unit: optionalText }),
+  ]),
+);
 
 const QuizInput = z.object({
   title: optionalText,
@@ -48,6 +88,10 @@ const QuizInput = z.object({
   mode: z.string().optional(),
   difficulty: z.string().optional(),
   secondsPerQuestion: z.number().int().min(5).max(300).optional(),
+  combo: z.boolean().optional(),
+  lives: z.number().int().min(1).max(MAX_LIVES).nullable().optional(), // null = survival off
+  shuffleQuestions: z.boolean().optional(),
+  shuffleAnswers: z.boolean().optional(),
   questions: z.array(QuestionInput).min(1).max(MAX_QUESTIONS),
 });
 
@@ -59,12 +103,17 @@ export type ParsedImport = {
   mode: GameMode | null;
   difficulty: Difficulty | null;
   secondsPerQuestion: number | null;
+  /** Options the file sets; the ones it leaves out come from the import form. */
+  options: Partial<{ combo: boolean; lives: number | null; shuffleQuestions: boolean; shuffleAnswers: boolean }>;
   questions: {
+    type: QuestionType;
+    data: QuestionData | null;
     prompt: string;
     explanation: string | null;
     wrongFeedback: string | null;
     image: ImageRef;
-    choices: { text: string; isCorrect: boolean; image: ImageRef }[];
+    // Answers (choice) or items, in their stored order (the right order for "order" questions).
+    choices: { text: string; isCorrect: boolean; group: number | null; image: ImageRef }[];
   }[];
 };
 
@@ -103,26 +152,61 @@ export function parseQuizImport(source: string): ParsedImport {
     mode: isGameMode(quiz.mode) ? quiz.mode : null,
     difficulty: isDifficulty(quiz.difficulty) ? quiz.difficulty : null,
     secondsPerQuestion: quiz.secondsPerQuestion ?? null,
+    options: Object.fromEntries(
+      (["combo", "lives", "shuffleQuestions", "shuffleAnswers"] as const).filter((k) => quiz[k] !== undefined).map((k) => [k, quiz[k]]),
+    ),
     questions: quiz.questions.map((q, i) => {
       const at = ["questions", i];
-      // The correct answer: correctIndex, or else the one choice flagged `correct: true`.
-      const flagged = q.choices.flatMap((c, j) => (c.correct ? [j] : []));
-      const correct = q.correctIndex ?? (flagged.length === 1 ? flagged[0] : -1);
-      if (correct < 0 || correct >= q.choices.length || (q.correctIndex !== undefined && flagged.some((j) => j !== correct))) {
-        throw new ImportError("correct", at);
-      }
-      return {
+      const base = {
+        type: q.type,
         prompt: q.prompt,
         explanation: q.explanation,
         wrongFeedback: q.wrongFeedback,
         image: decodeImage(q.image, [...at, "image"]),
-        choices: q.choices.map((c, j) => {
-          const img = decodeImage(c.image, [...at, "choices", j, "image"]);
-          // An answer can be a picture only, but not empty.
-          if (!c.text && !img) throw new ImportError("emptyChoice", [...at, "choices", j]);
-          return { text: c.text, isCorrect: j === correct, image: img };
-        }),
       };
+      /** An answer or item: a picture only is fine, empty is not. */
+      const entry = (c: { text: string; image: string | null }, field: string, j: number) => {
+        const img = decodeImage(c.image, [...at, field, j, "image"]);
+        if (!c.text && !img) throw new ImportError("emptyChoice", [...at, field, j]);
+        return { text: c.text, image: img };
+      };
+
+      switch (q.type) {
+        case "choice": {
+          // The correct answer: correctIndex, or else the one choice flagged `correct: true`.
+          const flagged = q.choices.flatMap((c, j) => (c.correct ? [j] : []));
+          const correct = q.correctIndex ?? (flagged.length === 1 ? flagged[0] : -1);
+          if (correct < 0 || correct >= q.choices.length || (q.correctIndex !== undefined && flagged.some((j) => j !== correct))) {
+            throw new ImportError("correct", at);
+          }
+          return {
+            ...base,
+            data: null,
+            choices: q.choices.map((c, j) => ({ ...entry(c, "choices", j), isCorrect: j === correct, group: null })),
+          };
+        }
+        case "hotspot": {
+          if (!base.image) throw new ImportError("hotspotImage", at);
+          const zones = q.zones.map(cleanZone).filter((z): z is Zone => z !== null);
+          if (!zones.length) throw new ImportError("format", [...at, "zones"], "no usable zone");
+          return { ...base, data: { zones }, choices: [] };
+        }
+        case "order":
+          return { ...base, data: null, choices: q.items.map((c, j) => ({ ...entry(c, "items", j), isCorrect: false, group: null })) };
+        case "categorize":
+          return {
+            ...base,
+            data: { categories: q.categories },
+            choices: q.items.map((c, j) => {
+              // A category is given by its index or its name.
+              const group = typeof c.category === "number" ? c.category : q.categories.indexOf(c.category.trim());
+              if (group < 0 || group >= q.categories.length) throw new ImportError("category", [...at, "items", j]);
+              return { ...entry(c, "items", j), isCorrect: false, group };
+            }),
+          };
+        case "numeric":
+          return { ...base, data: { answer: q.answer, tolerance: q.tolerance, unit: q.unit }, choices: [] };
+      }
     }),
   };
 }

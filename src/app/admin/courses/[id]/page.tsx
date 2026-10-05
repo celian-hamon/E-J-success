@@ -8,6 +8,7 @@ import PageHead from "@/components/PageHead";
 import Flash from "@/components/Flash";
 import WeekdayPicker from "@/components/WeekdayPicker";
 import FilterList from "@/components/FilterList";
+import ConfirmButton from "@/components/ConfirmButton";
 import { deleteCourse, duplicateCourse, enrollStudents, setCourseClasses, unenrollStudent, updateCourse } from "../../actions";
 
 type Props = { params: Promise<{ id: string }>; searchParams: SearchParams };
@@ -204,7 +205,9 @@ export default async function AdminCoursePage({ params, searchParams }: Props) {
             </form>
             <form action={deleteCourse} style={{ marginTop: 14 }}>
               <input type="hidden" name="id" value={course.id} />
-              <button className="btn btn-sm btn-danger" type="submit">{t("delete")}</button>
+              <ConfirmButton className="btn btn-sm btn-danger" message={tc("confirmDeleteCourse", { code: course.code })}>
+                {t("delete")}
+              </ConfirmButton>
             </form>
           </section>
         </div>

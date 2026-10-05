@@ -8,9 +8,11 @@ import { requireRole } from "@/lib/auth";
 import { flash } from "@/lib/flash";
 import { setStudentsClass, syncClassEnrollments } from "@/lib/classes";
 
+// Blank or absent → null.
 const optionalText = z
   .string()
   .trim()
+  .optional()
   .transform((v) => v || null);
 
 async function parseClass(formData: FormData) {
@@ -91,6 +93,31 @@ export async function removeStudentFromClass(formData: FormData) {
   await setStudentsClass([String(formData.get("userId"))], null);
   revalidatePath(`/admin/classes/${classId}`);
   flash(`/admin/classes/${classId}`, "ok", t("studentRemovedFromClass"));
+}
+
+/** Assigns teachers to a class (a teacher can be in any number of classes). */
+export async function addTeachersToClass(formData: FormData) {
+  await requireRole("ADMIN");
+  const t = await getTranslations("flash");
+  const classId = String(formData.get("classId"));
+  const path = `/admin/classes/${classId}`;
+  const wanted = formData.getAll("teacherId").map(String);
+  const teachers = await db.user.findMany({ where: { id: { in: wanted }, role: "TEACHER" }, select: { id: true } });
+  if (!teachers.length) flash(path, "error", t("pickTeacher"));
+  const have = new Set((await db.classTeacher.findMany({ where: { classId }, select: { userId: true } })).map((c) => c.userId));
+  const add = teachers.filter((u) => !have.has(u.id));
+  if (add.length) await db.classTeacher.createMany({ data: add.map((u) => ({ classId, userId: u.id })) });
+  revalidatePath(path);
+  flash(path, "ok", t("teachersAddedToClass", { count: add.length }));
+}
+
+export async function removeTeacherFromClass(formData: FormData) {
+  await requireRole("ADMIN");
+  const t = await getTranslations("flash");
+  const classId = String(formData.get("classId"));
+  await db.classTeacher.deleteMany({ where: { classId, userId: String(formData.get("userId")) } });
+  revalidatePath(`/admin/classes/${classId}`);
+  flash(`/admin/classes/${classId}`, "ok", t("teacherRemovedFromClass"));
 }
 
 export async function addCoursesToClass(formData: FormData) {

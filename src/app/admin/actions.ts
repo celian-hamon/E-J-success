@@ -10,9 +10,11 @@ import { ROLES } from "@/lib/roles";
 import { serializeClassDays } from "@/lib/schedule";
 import { setStudentsClass, syncClassEnrollments } from "@/lib/classes";
 
+// Blank or absent (a form may simply not have the field, e.g. the class page's quick create) → null.
 const optionalText = z
   .string()
   .trim()
+  .optional()
   .transform((v) => v || null);
 
 /* ───────── users ───────── */
@@ -79,6 +81,14 @@ export async function createCourse(formData: FormData) {
   revalidatePath("/admin/courses");
   if (classId) {
     await db.classCourse.create({ data: { classId, courseId: course.id } });
+    // The course's teacher now teaches this class too.
+    if (course.teacherId) {
+      await db.classTeacher.upsert({
+        where: { classId_userId: { classId, userId: course.teacherId } },
+        update: {},
+        create: { classId, userId: course.teacherId },
+      });
+    }
     await syncClassEnrollments(classId);
     revalidatePath(back);
     flash(back, "ok", t("courseCreatedInClass", { code: course.code }));
@@ -179,11 +189,15 @@ export async function duplicateCourse(formData: FormData) {
           questions: {
             create: q.questions.map((qq) => ({
               order: qq.order,
+              type: qq.type,
+              data: qq.data,
               prompt: qq.prompt,
               explanation: qq.explanation,
               wrongFeedback: qq.wrongFeedback,
               imageId: qq.imageId, // images are shared, never edited in place
-              choices: { create: qq.choices.map((c) => ({ order: c.order, text: c.text, isCorrect: c.isCorrect, imageId: c.imageId })) },
+              choices: {
+                create: qq.choices.map((c) => ({ order: c.order, text: c.text, isCorrect: c.isCorrect, group: c.group, imageId: c.imageId })),
+              },
             })),
           },
         })),

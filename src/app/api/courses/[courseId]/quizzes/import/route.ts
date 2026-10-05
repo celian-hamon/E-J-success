@@ -33,8 +33,9 @@ export async function POST(req: Request, { params }: { params: Promise<{ courseI
       const [key, index] = [err.path[i], err.path[i + 1]];
       if (key === "questions" && typeof index === "number") where.push(ti("whereQuestion", { n: index + 1 }));
       if (key === "choices" && typeof index === "number") where.push(ti("whereChoice", { n: index + 1 }));
+      if (key === "items" && typeof index === "number") where.push(ti("whereItem", { n: index + 1 }));
       if (key === "image") where.push(ti("whereImage"));
-      else if (typeof key === "string" && key !== "questions" && key !== "choices") where.push(`“${key}”`);
+      else if (typeof key === "string" && !["questions", "choices", "items"].includes(key)) where.push(`“${key}”`);
     }
     const code = err.code;
     const reason = code === "image" ? tf(`image_${err.mediaCode ?? "invalid"}`) : ti(`errors.${code}`, { detail: err.detail ?? "" });
@@ -59,16 +60,19 @@ export async function POST(req: Request, { params }: { params: Promise<{ courseI
         difficulty: parsed.difficulty ?? (isDifficulty(difficultyField) ? difficultyField : "medium"),
         ...(parsed.secondsPerQuestion ? { secondsPerQuestion: parsed.secondsPerQuestion } : {}),
         ...quizOptions(form),
+        ...parsed.options,
         sourceFileName: file.name,
         questions: {
           create: parsed.questions.map((q, i) => ({
             order: i,
+            type: q.type,
+            data: q.data ? JSON.stringify(q.data) : null,
             prompt: q.prompt,
             explanation: q.explanation,
             wrongFeedback: q.wrongFeedback,
             imageId: idOf(q.image),
             choices: {
-              create: q.choices.map((c, j) => ({ order: j, text: c.text, isCorrect: c.isCorrect, imageId: idOf(c.image) })),
+              create: q.choices.map((c, j) => ({ order: j, text: c.text, isCorrect: c.isCorrect, group: c.group, imageId: idOf(c.image) })),
             },
           })),
         },

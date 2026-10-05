@@ -9,6 +9,7 @@ import { levelInfo } from "@/lib/gamification/levels";
 import PageHead from "@/components/PageHead";
 import Flash from "@/components/Flash";
 import Avatar from "@/components/Avatar";
+import ConfirmButton from "@/components/ConfirmButton";
 import { createUser, deleteUser } from "../actions";
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -36,6 +37,7 @@ export default async function UsersPage({ searchParams }: { searchParams: Search
         enrollments: { include: { course: { select: { code: true } } } },
         taught: { select: { code: true } },
         schoolClass: { select: { id: true, name: true } },
+        teaching: { select: { class: { select: { id: true, name: true } } }, orderBy: { class: { name: "asc" } } },
       },
     }),
     db.schoolClass.findMany({ orderBy: { name: "asc" }, select: { id: true, name: true } }),
@@ -82,7 +84,14 @@ export default async function UsersPage({ searchParams }: { searchParams: Search
                       <td>
                         {u.schoolClass ? (
                           <Link href={`/admin/classes/${u.schoolClass.id}`}>{u.schoolClass.name}</Link>
-                        ) : role === "STUDENT" ? (
+                        ) : role === "TEACHER" && u.teaching.length ? (
+                          // Teachers can be assigned to several classes (from each class's page).
+                          <div className="row" style={{ gap: 4 }}>
+                            {u.teaching.map(({ class: c }) => (
+                              <Link key={c.id} href={`/admin/classes/${c.id}`} className="badge badge-teal">{c.name}</Link>
+                            ))}
+                          </div>
+                        ) : role !== "ADMIN" ? (
                           <span className="muted">{tc("none")}</span>
                         ) : (
                           "—"
@@ -93,7 +102,9 @@ export default async function UsersPage({ searchParams }: { searchParams: Search
                         {u.id !== me.id && (
                           <form action={deleteUser}>
                             <input type="hidden" name="id" value={u.id} />
-                            <button className="btn btn-sm btn-danger" type="submit">{tc("delete")}</button>
+                            <ConfirmButton className="btn btn-sm btn-danger" message={tc("confirmDeleteUser", { name: u.name })}>
+                              {tc("delete")}
+                            </ConfirmButton>
                           </form>
                         )}
                       </td>

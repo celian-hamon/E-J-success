@@ -22,6 +22,7 @@ const Body = z.object({
         choiceId: z.string().nullable(),
         timeMs: z.number().min(0),
         claim: z.boolean().nullable().optional(), // true-or-false mode
+        response: z.unknown().optional(), // other question types; checked by gradeAnswer
       }),
     )
     .max(200),
@@ -68,7 +69,7 @@ export async function POST(req: Request) {
 
   // Same rules as live play (lives, combo order, true-or-false); the blitz clock can't be
   // checked after the fact, so the player enforces it offline.
-  for (const a of answers) await gradeAnswer(attempt, a.questionId, a.choiceId, a.timeMs, { claim: a.claim });
+  for (const a of answers) await gradeAnswer(attempt, a.questionId, a.choiceId, a.timeMs, { claim: a.claim, response: a.response });
   await completeAttempt(attempt.id, playedAt);
 
   const result = await db.attempt.findUniqueOrThrow({ where: { id: attempt.id }, select: { xpEarned: true, correctCount: true, totalQuestions: true } });

@@ -10,7 +10,10 @@
     "none": "None",
     "delete": "Delete",
     "remove": "Remove",
-    "saveChanges": "Save changes"
+    "saveChanges": "Save changes",
+    "confirmDeleteUser": "Delete {name}’s account? Their results and progress will be lost. This can’t be undone.",
+    "confirmDeleteCourse": "Delete course {code}, its quizzes and every student result? This can’t be undone.",
+    "confirmDeleteClass": "Delete class {name}? Students and courses are kept, but removed from the class."
   },
   "nav": {
     "primary": "Primary",
@@ -139,7 +142,16 @@
     "image_type": "Image format not accepted (PNG, JPEG, WebP, GIF or AVIF).",
     "image_size": "Image too large (10 MB max).",
     "image_invalid": "That image couldn't be read.",
-    "imageInvalid": "That image couldn't be saved."
+    "imageInvalid": "That image couldn't be saved.",
+    "needItems": "Add at least 2 items.",
+    "needCategories": "Give at least 2 categories.",
+    "badCategory": "Every item needs a category that has a name.",
+    "needAnswer": "Enter the expected value (a number).",
+    "badTolerance": "The margin must be a positive number.",
+    "needHotspotImage": "A “click the zone” question needs an image.",
+    "needZone": "Draw at least one right zone on the image.",
+    "teachersAddedToClass": "{count, plural, =0 {These teachers were already assigned.} one {# teacher assigned to the class.} other {# teachers assigned to the class.}}",
+    "teacherRemovedFromClass": "Teacher removed from the class."
   },
   "admin": {
     "metaTitle": "Admin",
@@ -265,7 +277,13 @@
     "fromScratch": "Or start from scratch",
     "quizTitlePlaceholder": "Quiz title",
     "create": "Create",
-    "classes": "classes: {names}"
+    "classes": "classes: {names}",
+    "switchClass": "Switch class",
+    "allClasses": "All my classes",
+    "allClassesAdmin": "All classes",
+    "classSubtitle": "{name} · {students, plural, one {# student} other {# students}} · {courses, plural, one {# course} other {# courses}}",
+    "noCoursesInClass": "None of your courses is linked to this class yet.",
+    "manageClass": "Manage class"
   },
   "gameModes": {
     "classic": {
@@ -283,6 +301,28 @@
     "blitz": {
       "label": "Blitz",
       "description": "One clock for the whole game: answer as many questions as you can before time runs out."
+    }
+  },
+  "questionTypes": {
+    "choice": {
+      "label": "Multiple choice",
+      "help": "One right answer out of 2 to 6."
+    },
+    "hotspot": {
+      "label": "Click the zone",
+      "help": "Students click the right zone of the question image. Draw one or more right zones."
+    },
+    "order": {
+      "label": "Put in order",
+      "help": "Type the items in the right order: students get them shuffled."
+    },
+    "categorize": {
+      "label": "Sort",
+      "help": "Give 2 to 4 categories, then put each item in its own."
+    },
+    "numeric": {
+      "label": "Number",
+      "help": "Students type a number. A margin avoids penalizing rounding."
     }
   },
   "upload": {
@@ -318,7 +358,7 @@
     "failed": "Import failed.",
     "choose": "Choose a JSON file",
     "limit": "JSON up to 25 MB, images included in base64",
-    "help": "Multiple-choice questions, 2 to 6 answers each, one correct. Images (question or answer) go in as base64.",
+    "help": "Multiple choice, click the zone, put in order, sort or number (see the example). Images are base64.",
     "example": "Download an example",
     "importing": "Importing…",
     "submit": "Import the quiz",
@@ -333,8 +373,11 @@
       "format": "unexpected content ({detail}).",
       "correct": "exactly one correct answer is needed (correctIndex, or \"correct\": true on one answer).",
       "emptyChoice": "an answer needs text or an image.",
-      "base64": "the image isn't valid base64."
-    }
+      "base64": "the image isn't valid base64.",
+      "category": "unknown category: use the number (from 0) or the name of one of the question’s categories.",
+      "hotspotImage": "a \"hotspot\" question needs an image (\"image\")."
+    },
+    "whereItem": "item {n}"
   },
   "editor": {
     "question": "Question",
@@ -382,7 +425,26 @@
     "addImage": "Add an image to the question",
     "addImageShort": "Image",
     "imageHint": "PNG, JPEG, WebP, GIF or AVIF, 10 MB max. Resized and optimised automatically.",
-    "hasImage": "Illustrated question"
+    "hasImage": "Illustrated question",
+    "questionType": "Question type",
+    "zones": "Right zones",
+    "zonesHint": "Drag on the image to draw a right zone.",
+    "zonesCount": "{count, plural, one {# zone} other {# zones}} (max {max}). Drag to add one, × to remove it.",
+    "zonesNeedImage": "Add an image to the question first, then draw the zones on it.",
+    "removeZone": "Remove zone {n}",
+    "orderItems": "Items, in the right order",
+    "categories": "Categories",
+    "categoryN": "Category {n}",
+    "categoryOptional": "Category {n} (optional)",
+    "categoryShort": "Cat. {n}",
+    "categorizeItems": "Items to sort (pick each one’s category)",
+    "itemCategory": "Category of item {n}",
+    "numericAnswer": "Expected value",
+    "numericTolerance": "Accepted margin (±)",
+    "numericUnit": "Unit (optional)",
+    "zonesSummary": "✓ {count, plural, one {# right zone} other {# right zones}} on the image",
+    "confirmDeleteQuiz": "Delete “{title}”{count, plural, =0 {} one { and the result of # game} other { and the results of # games}}? This can’t be undone.",
+    "confirmDeleteQuestion": "Delete question {n}? Answers already given to it will be erased."
   },
   "player": {
     "errors": {
@@ -426,7 +488,21 @@
     "questionImage": "Question illustration (click to enlarge)",
     "answerImage": "Proposed answer illustration",
     "answerImageN": "Answer {n} (image)",
-    "rightAnswerLabel": "The right answer:"
+    "rightAnswerLabel": "The right answer:",
+    "validate": "Submit",
+    "hotspotHint": "Click the image where your answer is, then submit.",
+    "yourClick": "Your answer",
+    "orderHint": "Put the items back in order: drag them or use the arrows.",
+    "moveUp": "Move up",
+    "moveDown": "Move down",
+    "rightOrder": "The right order",
+    "categorizeHint": "Put each item in its category.",
+    "categorizeLeft": "{count, plural, one {# item left to sort} other {# items left to sort}}",
+    "numericPlaceholder": "Your answer",
+    "numericHint": "Comma or dot, e.g. 0.17 or 8e-3.",
+    "numericInvalid": "Enter a number.",
+    "rightValue": "Expected: {value}",
+    "tolerance": "(± {value})"
   },
   "progress": {
     "level": "Level {level}",
@@ -536,7 +612,12 @@
     "tfLine": "Proposed “{statement}”: you answered {verdict}.",
     "true": "True",
     "false": "False",
-    "whyWrong": "Why that's not it"
+    "whyWrong": "Why that's not it",
+    "hotspotLegend": "Green: the expected zone. The dot: your click.",
+    "yourOrder": "Your order",
+    "rightOrder": "The right order",
+    "yourChoice": "you: {category}",
+    "yourValue": "Your answer: {value}"
   },
   "pet": {
     "metaTitle": "My pet",
@@ -769,7 +850,13 @@
     "courseTitle": "Course title",
     "courseTeacher": "Teacher",
     "courseDays": "Class days",
-    "quickCreateSubmit": "Create and add to class"
+    "quickCreateSubmit": "Create and add to class",
+    "teachersTitle": "Teachers",
+    "teachersHint": "A teacher assigned to the class manages the quizzes of all its courses. A teacher can be assigned to several classes.",
+    "noTeachers": "No teacher assigned to this class.",
+    "searchTeachers": "Search teachers…",
+    "allTeachersAssigned": "Every teacher is already assigned.",
+    "addTeachersSubmit": "Assign to the class"
   },
   "filterList": {
     "summary": "{shown} of {total} shown · {selected} selected",

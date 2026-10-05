@@ -10,7 +10,10 @@
     "none": "Aucun",
     "delete": "Supprimer",
     "remove": "Retirer",
-    "saveChanges": "Enregistrer les modifications"
+    "saveChanges": "Enregistrer les modifications",
+    "confirmDeleteUser": "Supprimer le compte de {name} ? Ses résultats et sa progression seront perdus. C’est définitif.",
+    "confirmDeleteCourse": "Supprimer le cours {code}, ses quiz et tous les résultats des élèves ? C’est définitif.",
+    "confirmDeleteClass": "Supprimer la classe {name} ? Les élèves et les cours sont conservés, mais retirés de la classe."
   },
   "nav": {
     "primary": "Navigation principale",
@@ -139,7 +142,16 @@
     "image_type": "Format d’image non accepté (PNG, JPEG, WebP, GIF ou AVIF).",
     "image_size": "Image trop lourde (10 Mo maximum).",
     "image_invalid": "Cette image n’a pas pu être lue.",
-    "imageInvalid": "Cette image n’a pas pu être enregistrée."
+    "imageInvalid": "Cette image n’a pas pu être enregistrée.",
+    "needItems": "Ajoutez au moins 2 éléments.",
+    "needCategories": "Indiquez au moins 2 catégories.",
+    "badCategory": "Chaque élément doit être rangé dans une catégorie remplie.",
+    "needAnswer": "Indiquez la valeur attendue (un nombre).",
+    "badTolerance": "La marge doit être un nombre positif.",
+    "needHotspotImage": "Une question « zone à cliquer » a besoin d’une image.",
+    "needZone": "Dessinez au moins une zone correcte sur l’image.",
+    "teachersAddedToClass": "{count, plural, =0 {Ces enseignants étaient déjà rattachés.} one {# enseignant rattaché à la classe.} other {# enseignants rattachés à la classe.}}",
+    "teacherRemovedFromClass": "Enseignant retiré de la classe."
   },
   "admin": {
     "metaTitle": "Administration",
@@ -265,7 +277,13 @@
     "fromScratch": "Ou partir de zéro",
     "quizTitlePlaceholder": "Titre du quiz",
     "create": "Créer",
-    "classes": "classes : {names}"
+    "classes": "classes : {names}",
+    "switchClass": "Changer de classe",
+    "allClasses": "Toutes mes classes",
+    "allClassesAdmin": "Toutes les classes",
+    "classSubtitle": "{name} · {students, plural, one {# élève} other {# élèves}} · {courses, plural, one {# cours} other {# cours}}",
+    "noCoursesInClass": "Aucun de vos cours n’est rattaché à cette classe pour l’instant.",
+    "manageClass": "Gérer la classe"
   },
   "gameModes": {
     "classic": {
@@ -283,6 +301,28 @@
     "blitz": {
       "label": "Blitz",
       "description": "Un seul chrono pour toute la partie : répondez au plus de questions possible avant la fin."
+    }
+  },
+  "questionTypes": {
+    "choice": {
+      "label": "QCM",
+      "help": "Une seule bonne réponse parmi 2 à 6."
+    },
+    "hotspot": {
+      "label": "Zone à cliquer",
+      "help": "L’élève clique sur la bonne zone de l’image de la question. Dessinez une ou plusieurs zones correctes."
+    },
+    "order": {
+      "label": "Remettre dans l’ordre",
+      "help": "Saisissez les éléments dans le bon ordre : ils seront mélangés pour l’élève."
+    },
+    "categorize": {
+      "label": "Classer",
+      "help": "Donnez 2 à 4 catégories, puis rangez chaque élément dans la sienne."
+    },
+    "numeric": {
+      "label": "Valeur numérique",
+      "help": "L’élève tape un nombre. Une marge d’erreur évite de pénaliser les arrondis."
     }
   },
   "upload": {
@@ -318,7 +358,7 @@
     "failed": "Échec de l’import.",
     "choose": "Choisir un fichier JSON",
     "limit": "JSON jusqu’à 25 Mo, images incluses en base64",
-    "help": "QCM de 2 à 6 réponses par question, une seule bonne. Les images (question ou réponse) sont en base64.",
+    "help": "QCM, zone à cliquer, remise en ordre, classement ou valeur numérique (voir l’exemple). Les images sont en base64.",
     "example": "Télécharger un exemple",
     "importing": "Import…",
     "submit": "Importer le quiz",
@@ -333,8 +373,11 @@
       "format": "contenu inattendu ({detail}).",
       "correct": "il faut exactement une bonne réponse (correctIndex, ou \"correct\": true sur une réponse).",
       "emptyChoice": "une réponse doit avoir un texte ou une image.",
-      "base64": "l’image n’est pas un base64 valide."
-    }
+      "base64": "l’image n’est pas un base64 valide.",
+      "category": "catégorie inconnue : utilisez le numéro (à partir de 0) ou le nom d’une catégorie de la question.",
+      "hotspotImage": "une question « hotspot » a besoin d’une image (\"image\")."
+    },
+    "whereItem": "élément {n}"
   },
   "editor": {
     "question": "Question",
@@ -382,7 +425,26 @@
     "addImage": "Ajouter une image à la question",
     "addImageShort": "Image",
     "imageHint": "PNG, JPEG, WebP, GIF ou AVIF, 10 Mo max. Redimensionnée et optimisée automatiquement.",
-    "hasImage": "Question illustrée"
+    "hasImage": "Question illustrée",
+    "questionType": "Type de question",
+    "zones": "Zones correctes",
+    "zonesHint": "Glissez sur l’image pour dessiner une zone correcte.",
+    "zonesCount": "{count, plural, one {# zone} other {# zones}} (max. {max}). Glissez pour en ajouter, × pour en retirer.",
+    "zonesNeedImage": "Ajoutez d’abord une image à la question, puis dessinez les zones dessus.",
+    "removeZone": "Retirer la zone {n}",
+    "orderItems": "Éléments, dans le bon ordre",
+    "categories": "Catégories",
+    "categoryN": "Catégorie {n}",
+    "categoryOptional": "Catégorie {n} (facultative)",
+    "categoryShort": "Cat. {n}",
+    "categorizeItems": "Éléments à classer (choisissez la catégorie de chacun)",
+    "itemCategory": "Catégorie de l’élément {n}",
+    "numericAnswer": "Valeur attendue",
+    "numericTolerance": "Marge acceptée (±)",
+    "numericUnit": "Unité (facultative)",
+    "zonesSummary": "✓ {count, plural, one {# zone correcte} other {# zones correctes}} sur l’image",
+    "confirmDeleteQuiz": "Supprimer « {title} »{count, plural, =0 {} one { et le résultat de # partie} other { et les résultats de # parties}} ? C’est définitif.",
+    "confirmDeleteQuestion": "Supprimer la question {n} ? Les réponses déjà données à cette question seront effacées."
   },
   "player": {
     "errors": {
@@ -426,7 +488,21 @@
     "questionImage": "Illustration de la question (cliquer pour agrandir)",
     "answerImage": "Illustration de la réponse proposée",
     "answerImageN": "Réponse {n} (image)",
-    "rightAnswerLabel": "La bonne réponse :"
+    "rightAnswerLabel": "La bonne réponse :",
+    "validate": "Valider",
+    "hotspotHint": "Cliquez sur l’image à l’endroit de votre réponse, puis validez.",
+    "yourClick": "Votre réponse",
+    "orderHint": "Remettez les éléments dans l’ordre : glissez-les ou utilisez les flèches.",
+    "moveUp": "Monter",
+    "moveDown": "Descendre",
+    "rightOrder": "Le bon ordre",
+    "categorizeHint": "Rangez chaque élément dans sa catégorie.",
+    "categorizeLeft": "{count, plural, one {Encore # élément à ranger} other {Encore # éléments à ranger}}",
+    "numericPlaceholder": "Votre réponse",
+    "numericHint": "Virgule ou point acceptés, ex. 0,17 ou 8e-3.",
+    "numericInvalid": "Entrez un nombre.",
+    "rightValue": "Réponse attendue : {value}",
+    "tolerance": "(à ± {value} près)"
   },
   "progress": {
     "level": "Niveau {level}",
@@ -536,7 +612,12 @@
     "tfLine": "Proposition « {statement} » : vous avez répondu {verdict}.",
     "true": "Vrai",
     "false": "Faux",
-    "whyWrong": "Pourquoi ce n’est pas ça"
+    "whyWrong": "Pourquoi ce n’est pas ça",
+    "hotspotLegend": "En vert : la zone attendue. Le rond : votre clic.",
+    "yourOrder": "Votre ordre",
+    "rightOrder": "Le bon ordre",
+    "yourChoice": "vous : {category}",
+    "yourValue": "Votre réponse : {value}"
   },
   "pet": {
     "metaTitle": "Mon compagnon",
@@ -769,7 +850,13 @@
     "courseTitle": "Titre du cours",
     "courseTeacher": "Enseignant",
     "courseDays": "Jours de cours",
-    "quickCreateSubmit": "Créer et ajouter à la classe"
+    "quickCreateSubmit": "Créer et ajouter à la classe",
+    "teachersTitle": "Enseignants",
+    "teachersHint": "Un enseignant rattaché à la classe gère les quiz de tous ses cours. Un enseignant peut être rattaché à plusieurs classes.",
+    "noTeachers": "Aucun enseignant rattaché à cette classe.",
+    "searchTeachers": "Rechercher un enseignant…",
+    "allTeachersAssigned": "Tous les enseignants sont déjà rattachés.",
+    "addTeachersSubmit": "Rattacher à la classe"
   },
   "filterList": {
     "summary": "{shown} affichés sur {total} · {selected} sélectionnés",

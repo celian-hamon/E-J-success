@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import { getCurrentUser } from "@/lib/auth";
+import { getCurrentUser, managedCoursesWhere } from "@/lib/auth";
 
 // Pages the service worker should pre-cache for this user, so the app keeps working
 // offline: their home, every quiz they can play, recent results, profile and pet.
@@ -27,7 +27,7 @@ export async function GET() {
   } else {
     urls.add("/teacher");
     const courses = await db.course.findMany({
-      where: user.role === "ADMIN" ? {} : { teacherId: user.id },
+      where: user.role === "ADMIN" ? {} : managedCoursesWhere(user.id),
       select: { id: true, quizzes: { select: { id: true } } },
     });
     for (const c of courses) {
