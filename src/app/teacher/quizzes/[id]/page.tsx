@@ -299,13 +299,20 @@ export default async function QuizEditorPage({ params, searchParams }: Props) {
           { href: `/teacher/courses/${quiz.course.id}`, label: quiz.course.code },
         ]}
         actions={
-          <form action={setPublished}>
-            <input type="hidden" name="quizId" value={quiz.id} />
-            <input type="hidden" name="published" value={String(!quiz.published)} />
-            <button className={`btn ${quiz.published ? "" : "btn-bright"}`} type="submit">
-              {quiz.published ? t("unpublish") : t("publish")}
-            </button>
-          </form>
+          <div className="row" style={{ gap: 10 }}>
+            {quiz.questions.length > 0 && (
+              <Link className="btn" href={`/teacher/quizzes/${quiz.id}/play`} title={t("testHint")}>
+                🧪 {t("test")}
+              </Link>
+            )}
+            <form action={setPublished}>
+              <input type="hidden" name="quizId" value={quiz.id} />
+              <input type="hidden" name="published" value={String(!quiz.published)} />
+              <button className={`btn ${quiz.published ? "" : "btn-bright"}`} type="submit">
+                {quiz.published ? t("unpublish") : t("publish")}
+              </button>
+            </form>
+          </div>
         }
       />
       <Flash searchParams={searchParams} />

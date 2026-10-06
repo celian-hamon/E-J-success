@@ -12,7 +12,9 @@ import Flash from "@/components/Flash";
 import Avatar from "@/components/Avatar";
 import { BadgeIcon, LevelBar, StreakFlame } from "@/components/Progress";
 import AvatarEditor from "./AvatarEditor";
-import { setLeaderboardVisibility } from "./actions";
+import Link from "next/link";
+import { AUDIENCES, parsePrivacy, sectionsFor } from "@/lib/privacy";
+import { savePrivacy, setLeaderboardVisibility } from "./actions";
 
 export async function generateMetadata(): Promise<Metadata> {
   return { title: (await getTranslations("profile"))("metaTitle") };
@@ -20,8 +22,9 @@ export async function generateMetadata(): Promise<Metadata> {
 
 export default async function ProfilePage({ searchParams }: { searchParams: SearchParams }) {
   const me = await requireUser();
-  const [t, tb, tr, tt, format, p] = await Promise.all([
+  const [t, tpp, tb, tr, tt, format, p] = await Promise.all([
     getTranslations("profile"),
+    getTranslations("publicProfile"),
     getTranslations("badges"),
     getTranslations("roles"),
     getTranslations("tiers"),
@@ -29,6 +32,7 @@ export default async function ProfilePage({ searchParams }: { searchParams: Sear
     loadProgress(me.id),
   ]);
   const isStudent = me.role === "STUDENT";
+  const privacy = parsePrivacy(p.user.privacy);
 
   const stats = isStudent
     ? await db.attempt.aggregate({
@@ -40,8 +44,40 @@ export default async function ProfilePage({ searchParams }: { searchParams: Sear
 
   return (
     <div className="app">
-      <PageHead title={t.rich("title", { tint: (c) => <em className="tint">{c}</em> })} subtitle={`${me.name} · ${tr(me.role)}`} />
+      <PageHead
+        title={t.rich("title", { tint: (c) => <em className="tint">{c}</em> })}
+        subtitle={`${me.name} · ${tr(me.role)}`}
+        actions={<Link className="btn" href={`/users/${me.id}`}>{t("viewPublic")}</Link>}
+      />
       <Flash searchParams={searchParams} />
+
+      <section className="panel glass intro intro-2">
+        <h2>{t("privacyTitle")}</h2>
+        <p className="muted" style={{ marginTop: -6, fontSize: 14 }}>{t("privacyHint")}</p>
+        <form action={savePrivacy} className="stack" style={{ gap: 10 }}>
+          {sectionsFor(me.role).map((s) => (
+            <div key={s} className="privacy-row">
+              <div>
+                <strong>{tpp(`sections.${s}.label`)}</strong>
+                <span className="muted">{tpp(`sections.${s}.hint`)}</span>
+              </div>
+              <div className="seg" role="radiogroup" aria-label={tpp(`sections.${s}.label`)}>
+                {AUDIENCES.map((a) => (
+                  <label key={a}>
+                    <input type="radio" name={s} value={a} defaultChecked={privacy[s] === a} />
+                    <span>{tpp(`audience.${a}`)}</span>
+                  </label>
+                ))}
+              </div>
+            </div>
+          ))}
+          <div className="row" style={{ gap: 10, marginTop: 4 }}>
+            <button className="btn btn-bright btn-sm" type="submit">{t("privacySave")}</button>
+            <Link className="btn btn-sm" href={`/users/${me.id}?as=class`}>{t("previewAsClass")}</Link>
+            <Link className="btn btn-sm" href={`/users/${me.id}?as=other`}>{t("previewAsOther")}</Link>
+          </div>
+        </form>
+      </section>
 
       {isStudent && (
         <section className="player-card glass intro intro-2">

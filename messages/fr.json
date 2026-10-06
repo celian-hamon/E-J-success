@@ -151,7 +151,8 @@
     "needHotspotImage": "Une question « zone à cliquer » a besoin d’une image.",
     "needZone": "Dessinez au moins une zone correcte sur l’image.",
     "teachersAddedToClass": "{count, plural, =0 {Ces enseignants étaient déjà rattachés.} one {# enseignant rattaché à la classe.} other {# enseignants rattachés à la classe.}}",
-    "teacherRemovedFromClass": "Enseignant retiré de la classe."
+    "teacherRemovedFromClass": "Enseignant retiré de la classe.",
+    "privacySaved": "Confidentialité enregistrée."
   },
   "admin": {
     "metaTitle": "Administration",
@@ -283,7 +284,9 @@
     "allClassesAdmin": "Toutes les classes",
     "classSubtitle": "{name} · {students, plural, one {# élève} other {# élèves}} · {courses, plural, one {# cours} other {# cours}}",
     "noCoursesInClass": "Aucun de vos cours n’est rattaché à cette classe pour l’instant.",
-    "manageClass": "Gérer la classe"
+    "manageClass": "Gérer la classe",
+    "test": "Tester",
+    "testHint": "Jouer ce quiz comme un élève, sans rien enregistrer"
   },
   "gameModes": {
     "classic": {
@@ -444,7 +447,9 @@
     "numericUnit": "Unité (facultative)",
     "zonesSummary": "✓ {count, plural, one {# zone correcte} other {# zones correctes}} sur l’image",
     "confirmDeleteQuiz": "Supprimer « {title} »{count, plural, =0 {} one { et le résultat de # partie} other { et les résultats de # parties}} ? C’est définitif.",
-    "confirmDeleteQuestion": "Supprimer la question {n} ? Les réponses déjà données à cette question seront effacées."
+    "confirmDeleteQuestion": "Supprimer la question {n} ? Les réponses déjà données à cette question seront effacées.",
+    "test": "Tester",
+    "testHint": "Jouer ce quiz comme un élève, sans rien enregistrer"
   },
   "player": {
     "errors": {
@@ -502,7 +507,17 @@
     "numericHint": "Virgule ou point acceptés, ex. 0,17 ou 8e-3.",
     "numericInvalid": "Entrez un nombre.",
     "rightValue": "Réponse attendue : {value}",
-    "tolerance": "(à ± {value} près)"
+    "tolerance": "(à ± {value} près)",
+    "mockBadge": "Mode test",
+    "mockIntro": "Mode test : vous jouez comme un élève, mais rien n’est enregistré (ni partie, ni XP, ni classement, ni repas du compagnon).",
+    "mockStart": "Tester le quiz",
+    "mockFinish": "Terminer le test",
+    "mockSummary": "{correct}/{total} bonnes réponses ({answered} répondues)",
+    "mockNothingSaved": "Rien n’a été enregistré : ce test n’apparaît ni dans les résultats ni dans les classements.",
+    "mockAgain": "Recommencer",
+    "mockExit": "Retour à l’éditeur",
+    "mockSubtitle": "Mode test · rien n’est enregistré",
+    "mockSubtitleDraft": "Mode test · brouillon, invisible pour les élèves · rien n’est enregistré"
   },
   "progress": {
     "level": "Niveau {level}",
@@ -674,7 +689,7 @@
   },
   "student": {
     "title": "Bonjour {name}, prêt à <tint>jouer ?</tint>",
-    "subtitle": "Voici les quiz des cours qui vous sont attribués.",
+    "subtitle": "Choisissez une matière pour voir ses quiz.",
     "customizeAvatar": "Personnaliser votre avatar",
     "dailyDone": "✓ Objectif du jour atteint",
     "dailyGoal": "Objectif du jour : terminer un quiz <b>+{xp} XP</b>",
@@ -689,7 +704,21 @@
     "best": "meilleur {correct}/{total}, rejouez pour 3★",
     "leaderboard": "Classement de la semaine",
     "leaderboardEmpty": "Personne n’a encore marqué cette semaine. Soyez le premier !",
-    "subtitleClass": "Classe {name} · voici les quiz de vos cours."
+    "subtitleClass": "Classe {name} · choisissez une matière pour voir ses quiz.",
+    "nextClass": "Prochain cours",
+    "today": "Aujourd’hui",
+    "tomorrow": "Demain",
+    "toReview": "À réviser",
+    "nextOn": "prochain cours : {day}",
+    "subjects": "Mes matières",
+    "subjectProgress": "{done}/{total} quiz maîtrisés",
+    "subjectPlayed": "{count, plural, =0 {aucun quiz joué} one {# quiz joué} other {# quiz joués}}",
+    "noQuizzesShort": "Pas encore de quiz",
+    "quizzesTitle": "Quiz",
+    "play": "Jouer",
+    "replay": "Rejouer",
+    "openSubject": "Voir la matière",
+    "mealToEarn": "Terminez un quiz aujourd’hui pour nourrir {name}."
   },
   "profile": {
     "metaTitle": "Profil",
@@ -708,7 +737,13 @@
     "visible": "Vos camarades voient votre nom et vos XP de la semaine dans les classements des cours.",
     "hidden": "Vous êtes masqué pour vos camarades. Vous voyez toujours votre propre rang.",
     "hideMe": "Me masquer",
-    "showMe": "M’afficher"
+    "showMe": "M’afficher",
+    "viewPublic": "Voir mon profil public",
+    "privacyTitle": "Confidentialité du profil",
+    "privacyHint": "Choisissez qui voit chaque partie de votre profil public. Votre nom et votre avatar sont toujours visibles ; l’administration voit tout. « Ma classe » : vos camarades de classe et les enseignants de vos cours.",
+    "privacySave": "Enregistrer",
+    "previewAsClass": "Aperçu : ma classe",
+    "previewAsOther": "Aperçu : tout le monde"
   },
   "avatar": {
     "parts": {
@@ -896,5 +931,54 @@
     "yourClass": "votre classe",
     "average": "{xp} XP / élève",
     "classMeta": "{students, plural, one {# élève} other {# élèves}} · {total} XP au total"
+  },
+  "publicProfile": {
+    "editPrivacy": "Modifier la confidentialité",
+    "previewClass": "Aperçu : votre profil tel que le voient votre classe et vos enseignants.",
+    "previewOther": "Aperçu : votre profil tel que le voient les autres utilisateurs.",
+    "previewExit": "Quitter l’aperçu",
+    "private": "{name} a choisi de garder son profil privé.",
+    "bestStreak": "Meilleure série <b>{count}</b>",
+    "totals": "<b>{quizzes}</b> quiz · <b>{correct}</b> bonnes réponses",
+    "badges": "Badges · {count}/{total}",
+    "noBadges": "Pas encore de badge.",
+    "activity": "Activité récente",
+    "noActivity": "Aucune partie terminée pour l’instant.",
+    "pet": "Compagnon",
+    "courses": "Classe et cours",
+    "teaches": "Enseigne",
+    "classes": "Classes : {names}",
+    "noCourses": "Aucun cours.",
+    "audience": {
+      "everyone": "Tout le monde",
+      "class": "Ma classe",
+      "private": "Moi seul"
+    },
+    "sections": {
+      "level": {
+        "label": "Niveau et XP",
+        "hint": "votre rang, votre niveau et votre barre d’XP"
+      },
+      "stats": {
+        "label": "Statistiques",
+        "hint": "série en cours, meilleure série, quiz terminés"
+      },
+      "badges": {
+        "label": "Badges",
+        "hint": "les badges que vous avez gagnés"
+      },
+      "pet": {
+        "label": "Compagnon",
+        "hint": "votre compagnon, son nom et son humeur"
+      },
+      "courses": {
+        "label": "Classe et cours",
+        "hint": "votre classe et les cours que vous suivez ou enseignez"
+      },
+      "activity": {
+        "label": "Activité récente",
+        "hint": "vos dernières parties et leurs étoiles"
+      }
+    }
   }
 }

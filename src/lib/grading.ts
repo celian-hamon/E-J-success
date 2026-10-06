@@ -69,8 +69,8 @@ export async function gradeAnswer(
   const wrongSoFar = previous.filter((p) => !p.isCorrect).length;
   if (cfg.lives && wrongSoFar >= cfg.lives) return null;
 
-  const globalLimitMs = blitzSeconds(attempt.totalQuestions, attempt.quiz.secondsPerQuestion) * 1000;
   if (cfg.timer === "global" && opts.enforceClock) {
+    const globalLimitMs = blitzSeconds(attempt.totalQuestions, attempt.quiz.secondsPerQuestion) * 1000;
     const grace = 5000; // network latency
     if (Date.now() - attempt.startedAt.getTime() > globalLimitMs + grace) return null;
   }
@@ -78,52 +78,72 @@ export async function gradeAnswer(
   let streakBefore = 0;
   for (let i = previous.length - 1; i >= 0 && previous[i].isCorrect; i--) streakBefore++;
 
+  const { result, record } = evaluate(question, attempt.quiz, attempt.totalQuestions, { choiceId, rawTimeMs, ...opts }, { streakBefore, wrongSoFar });
+  await db.attemptAnswer.create({ data: { attemptId: attempt.id, questionId: question.id, ...record } });
+  return result;
+}
+
+type GradableQuestion = {
+  type: string;
+  data: string | null;
+  explanation: string | null;
+  wrongFeedback: string | null;
+  choices: { id: string; isCorrect: boolean; order: number; group: number | null }[];
+};
+
+/**
+ * Grades one answer without touching the database: used by gradeAnswer (which stores it)
+ * and by the staff test mode (which stores nothing). `ctx` is the run so far.
+ */
+export function evaluate(
+  question: GradableQuestion,
+  quiz: AttemptForGrading["quiz"],
+  totalQuestions: number,
+  input: { choiceId: string | null; rawTimeMs: number; claim?: boolean | null; response?: unknown },
+  ctx: { streakBefore: number; wrongSoFar: number },
+) {
+  const cfg = playConfig(quiz);
   const type = questionType(question.type);
   const isChoice = type === "choice";
   const correctChoice = isChoice ? (question.choices.find((c) => c.isCorrect) ?? null) : null;
-  const picked = isChoice && choiceId ? (question.choices.find((c) => c.id === choiceId) ?? null) : null;
+  const picked = isChoice && input.choiceId ? (question.choices.find((c) => c.id === input.choiceId) ?? null) : null;
   // True-or-false only applies to multiple choice: `picked` is the proposed answer and `claim` the verdict.
-  const claim = cfg.trueFalse && isChoice ? (opts.claim ?? null) : null;
+  const claim = cfg.trueFalse && isChoice ? (input.claim ?? null) : null;
   // The other types send a `response` (point clicked, order, categories, typed value).
   const solution = isChoice ? null : solutionFor(type, parseData(question.data), question.choices);
-  const response = isChoice ? null : (opts.response ?? null);
+  const response = isChoice ? null : (input.response ?? null);
   const correct = solution
     ? isRightResponse(solution, response)
     : cfg.trueFalse
       ? picked !== null && claim !== null && picked.isCorrect === claim
       : Boolean(picked?.isCorrect);
-  // Stored for the results page; capped so a crafted request can't bloat the database.
-  const storedResponse = response === null ? null : JSON.stringify(response).slice(0, 2000);
 
-  const limitMs = cfg.timer === "global" ? globalLimitMs : attempt.quiz.secondsPerQuestion * 1000;
-  const timeMs = Math.min(limitMs, Math.max(0, Math.round(rawTimeMs)));
-  const points = scoreAnswer(cfg, correct, timeMs, limitMs, streakBefore);
+  const limitMs = cfg.timer === "global" ? blitzSeconds(totalQuestions, quiz.secondsPerQuestion) * 1000 : quiz.secondsPerQuestion * 1000;
+  const timeMs = Math.min(limitMs, Math.max(0, Math.round(input.rawTimeMs)));
+  const points = scoreAnswer(cfg, correct, timeMs, limitMs, ctx.streakBefore);
+  const livesLeft = cfg.lives ? cfg.lives - ctx.wrongSoFar - (correct ? 0 : 1) : undefined;
 
-  await db.attemptAnswer.create({
-    data: {
-      attemptId: attempt.id,
-      questionId: question.id,
-      choiceId: picked?.id ?? null,
-      claim,
-      response: storedResponse,
-      isCorrect: correct,
-      points,
-      timeMs,
-    },
-  });
-
-  const livesLeft = cfg.lives ? cfg.lives - wrongSoFar - (correct ? 0 : 1) : undefined;
-  return {
+  const result: GradeResult = {
     correct,
     correctChoiceId: correctChoice?.id ?? null,
     solution,
     points,
     explanation: question.explanation,
     wrongFeedback: correct ? null : question.wrongFeedback,
-    multiplier: cfg.combo && correct ? comboMultiplier(streakBefore) : undefined,
+    multiplier: cfg.combo && correct ? comboMultiplier(ctx.streakBefore) : undefined,
     livesLeft,
     gameOver: livesLeft !== undefined && livesLeft <= 0,
   };
+  // What gradeAnswer stores. The response is capped so a crafted request can't bloat the database.
+  const record = {
+    choiceId: picked?.id ?? null,
+    claim,
+    response: response === null ? null : JSON.stringify(response).slice(0, 2000),
+    isCorrect: correct,
+    points,
+    timeMs,
+  };
+  return { result, record };
 }
 
 /** Totals the answers, marks the attempt complete and awards XP. Safe to call twice. */

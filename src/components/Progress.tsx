@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { useFormatter, useTranslations } from "next-intl";
 import { BADGES, type BadgeId } from "@/lib/gamification/badges";
 import { levelInfo } from "@/lib/gamification/levels";
@@ -75,7 +76,7 @@ export function Leaderboard({ rows, emptyText, joinHint }: { rows: LeaderRow[]; 
             <span className={`lb-rank r${r.rank}`}>{r.rank}</span>
             <Avatar avatar={r.avatar} size={30} level={r.level} />
             <span className="lb-name">
-              {r.isViewer ? t("you", { name: r.name }) : r.name}
+              <Link href={`/users/${r.userId}`} className="lb-link">{r.isViewer ? t("you", { name: r.name }) : r.name}</Link>
               {r.className && <span className="muted" style={{ fontSize: 12.5 }}> · {r.className}</span>}
             </span>
             <span className="lb-xp">{format.number(r.xp)} XP</span>

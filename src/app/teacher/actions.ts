@@ -11,6 +11,8 @@ import { getManagedQuiz } from "@/lib/quiz-access";
 import { deleteQuizPdf } from "@/lib/uploads";
 import { isDifficulty } from "@/lib/difficulty";
 import { isUpload, MediaError, releaseMedia, saveImage } from "@/lib/media";
+import { evaluate, GRADING_QUIZ_FIELDS, type GradeResult } from "@/lib/grading";
+import type { AnswerResponse } from "@/lib/question-types";
 import {
   cleanZone,
   MAX_CATEGORIES,
@@ -28,6 +30,35 @@ async function requireQuiz(quizId: string) {
   const quiz = await getManagedQuiz(user, quizId);
   if (!quiz) flash("/teacher", "error", (await getTranslations("flash"))("quizNotYours"));
   return quiz;
+}
+
+/**
+ * Test mode: grades one answer exactly like a real game, but stores nothing (no attempt,
+ * no XP, no badges, no pet meal). The run so far (streak, mistakes) comes from the player.
+ */
+export async function previewAnswer(input: {
+  quizId: string;
+  questionId: string;
+  choiceId: string | null;
+  timeMs: number;
+  claim?: boolean | null;
+  response?: AnswerResponse | null;
+  streakBefore: number;
+  wrongSoFar: number;
+}): Promise<GradeResult> {
+  const user = await requireRole("TEACHER", "ADMIN");
+  if (!(await getManagedQuiz(user, input.quizId))) throw new Error("unavailable");
+  const quiz = await db.quiz.findUnique({
+    where: { id: input.quizId },
+    select: { ...GRADING_QUIZ_FIELDS, _count: { select: { questions: true } } },
+  });
+  const question = await db.question.findFirst({ where: { id: input.questionId, quizId: input.quizId }, include: { choices: true } });
+  if (!quiz || !question) throw new Error("unavailable");
+  const ctx = {
+    streakBefore: Math.max(0, Math.min(1000, Math.floor(Number(input.streakBefore) || 0))),
+    wrongSoFar: Math.max(0, Math.min(1000, Math.floor(Number(input.wrongSoFar) || 0))),
+  };
+  return evaluate(question, quiz, quiz._count.questions, { choiceId: input.choiceId, rawTimeMs: input.timeMs, claim: input.claim, response: input.response }, ctx).result;
 }
 
 export async function createBlankQuiz(formData: FormData) {

@@ -31,6 +31,7 @@ model User {
   lastActiveDay     String? // "YYYY-MM-DD" of the last day a quiz was completed
   streakFreezes     Int       @default(0)
   showOnLeaderboard Boolean   @default(true)
+  privacy           String? // JSON: who sees each part of the public profile (see src/lib/privacy.ts)
   badges            UserBadge[]
   xpEvents          XpEvent[]
   pet               Pet?

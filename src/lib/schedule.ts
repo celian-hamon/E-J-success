@@ -20,6 +20,14 @@ export function meetsOn(classDays: string | null | undefined, date = new Date())
   return parseClassDays(classDays).includes(isoWeekday(date));
 }
 
+/** Days until the course next meets: 0 = today, 1 = tomorrow…, or null if it has no class days. */
+export function daysUntilNext(classDays: string | null | undefined, date = new Date()) {
+  const days = parseClassDays(classDays);
+  if (!days.length) return null;
+  const today = isoWeekday(date);
+  return Math.min(...days.map((d) => (d - today + 7) % 7));
+}
+
 /** A Monday-based reference date for formatting weekday names with Intl. */
 export function weekdayDate(day: number) {
   return new Date(2024, 0, day); // 1 Jan 2024 was a Monday

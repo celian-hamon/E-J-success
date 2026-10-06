@@ -75,7 +75,7 @@ export default async function UsersPage({ searchParams }: { searchParams: Search
                         <div className="row" style={{ flexWrap: "nowrap" }}>
                           <Avatar avatar={u.avatar} size={34} level={role === "STUDENT" ? levelInfo(u.xp).level : undefined} />
                           <div>
-                            <strong>{u.name}</strong>
+                            <Link href={`/users/${u.id}`}><strong>{u.name}</strong></Link>
                             <div className="muted" style={{ fontSize: 13 }}>{u.email}</div>
                           </div>
                         </div>

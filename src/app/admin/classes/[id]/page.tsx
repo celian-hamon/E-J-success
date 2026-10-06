@@ -101,7 +101,7 @@ export default async function ClassPage({ params, searchParams }: Props) {
                           <div className="row" style={{ flexWrap: "nowrap" }}>
                             <Avatar avatar={s.avatar} size={34} level={levelInfo(s.xp).level} />
                             <div>
-                              <strong>{s.name}</strong>
+                              <Link href={`/users/${s.id}`}><strong>{s.name}</strong></Link>
                               <div className="muted" style={{ fontSize: 13 }}>{s.email}</div>
                             </div>
                           </div>
@@ -132,7 +132,7 @@ export default async function ClassPage({ params, searchParams }: Props) {
                   <div key={tt.id} className="meal-row">
                     <Avatar avatar={tt.avatar} size={34} />
                     <div>
-                      <strong style={{ fontWeight: 400 }}>{tt.name}</strong>
+                      <Link href={`/users/${tt.id}`}><strong style={{ fontWeight: 400 }}>{tt.name}</strong></Link>
                       <div className="muted" style={{ fontSize: 13 }}>{tt.email}</div>
                     </div>
                     <form action={removeTeacherFromClass}>

@@ -151,7 +151,8 @@
     "needHotspotImage": "A “click the zone” question needs an image.",
     "needZone": "Draw at least one right zone on the image.",
     "teachersAddedToClass": "{count, plural, =0 {These teachers were already assigned.} one {# teacher assigned to the class.} other {# teachers assigned to the class.}}",
-    "teacherRemovedFromClass": "Teacher removed from the class."
+    "teacherRemovedFromClass": "Teacher removed from the class.",
+    "privacySaved": "Privacy saved."
   },
   "admin": {
     "metaTitle": "Admin",
@@ -283,7 +284,9 @@
     "allClassesAdmin": "All classes",
     "classSubtitle": "{name} · {students, plural, one {# student} other {# students}} · {courses, plural, one {# course} other {# courses}}",
     "noCoursesInClass": "None of your courses is linked to this class yet.",
-    "manageClass": "Manage class"
+    "manageClass": "Manage class",
+    "test": "Test",
+    "testHint": "Play this quiz like a student, without saving anything"
   },
   "gameModes": {
     "classic": {
@@ -444,7 +447,9 @@
     "numericUnit": "Unit (optional)",
     "zonesSummary": "✓ {count, plural, one {# right zone} other {# right zones}} on the image",
     "confirmDeleteQuiz": "Delete “{title}”{count, plural, =0 {} one { and the result of # game} other { and the results of # games}}? This can’t be undone.",
-    "confirmDeleteQuestion": "Delete question {n}? Answers already given to it will be erased."
+    "confirmDeleteQuestion": "Delete question {n}? Answers already given to it will be erased.",
+    "test": "Test",
+    "testHint": "Play this quiz like a student, without saving anything"
   },
   "player": {
     "errors": {
@@ -502,7 +507,17 @@
     "numericHint": "Comma or dot, e.g. 0.17 or 8e-3.",
     "numericInvalid": "Enter a number.",
     "rightValue": "Expected: {value}",
-    "tolerance": "(± {value})"
+    "tolerance": "(± {value})",
+    "mockBadge": "Test mode",
+    "mockIntro": "Test mode: you play like a student, but nothing is saved (no game, XP, leaderboard or pet meal).",
+    "mockStart": "Test the quiz",
+    "mockFinish": "Finish the test",
+    "mockSummary": "{correct}/{total} right answers ({answered} answered)",
+    "mockNothingSaved": "Nothing was saved: this test doesn’t appear in results or leaderboards.",
+    "mockAgain": "Start again",
+    "mockExit": "Back to the editor",
+    "mockSubtitle": "Test mode · nothing is saved",
+    "mockSubtitleDraft": "Test mode · draft, hidden from students · nothing is saved"
   },
   "progress": {
     "level": "Level {level}",
@@ -674,7 +689,7 @@
   },
   "student": {
     "title": "Hi {name}, ready to <tint>play?</tint>",
-    "subtitle": "Here are the quizzes for the courses you're assigned to.",
+    "subtitle": "Pick a subject to see its quizzes.",
     "customizeAvatar": "Customize your avatar",
     "dailyDone": "✓ Daily goal done",
     "dailyGoal": "Daily goal: finish a quiz <b>+{xp} XP</b>",
@@ -689,7 +704,21 @@
     "best": "best {correct}/{total}, replay for 3★",
     "leaderboard": "This week's leaderboard",
     "leaderboardEmpty": "No one has scored this week yet. Be the first!",
-    "subtitleClass": "Class {name} · here are the quizzes for your courses."
+    "subtitleClass": "Class {name} · pick a subject to see its quizzes.",
+    "nextClass": "Next class",
+    "today": "Today",
+    "tomorrow": "Tomorrow",
+    "toReview": "To review",
+    "nextOn": "next class: {day}",
+    "subjects": "My subjects",
+    "subjectProgress": "{done}/{total} quizzes mastered",
+    "subjectPlayed": "{count, plural, =0 {no quiz played} one {# quiz played} other {# quizzes played}}",
+    "noQuizzesShort": "No quizzes yet",
+    "quizzesTitle": "Quizzes",
+    "play": "Play",
+    "replay": "Play again",
+    "openSubject": "Open subject",
+    "mealToEarn": "Finish a quiz today to feed {name}."
   },
   "profile": {
     "metaTitle": "Profile",
@@ -708,7 +737,13 @@
     "visible": "Classmates can see your name and weekly XP on course leaderboards.",
     "hidden": "You're hidden from classmates. You still see your own rank.",
     "hideMe": "Hide me",
-    "showMe": "Show me"
+    "showMe": "Show me",
+    "viewPublic": "View my public profile",
+    "privacyTitle": "Profile privacy",
+    "privacyHint": "Choose who sees each part of your public profile. Your name and avatar are always visible; the administration sees everything. “My class”: your classmates and the teachers of your courses.",
+    "privacySave": "Save",
+    "previewAsClass": "Preview: my class",
+    "previewAsOther": "Preview: everyone"
   },
   "avatar": {
     "parts": {
@@ -896,5 +931,54 @@
     "yourClass": "your class",
     "average": "{xp} XP / student",
     "classMeta": "{students, plural, one {# student} other {# students}} · {total} XP in total"
+  },
+  "publicProfile": {
+    "editPrivacy": "Edit privacy",
+    "previewClass": "Preview: your profile as your class and teachers see it.",
+    "previewOther": "Preview: your profile as other users see it.",
+    "previewExit": "Exit preview",
+    "private": "{name} keeps their profile private.",
+    "bestStreak": "Best streak <b>{count}</b>",
+    "totals": "<b>{quizzes}</b> quizzes · <b>{correct}</b> right answers",
+    "badges": "Badges · {count}/{total}",
+    "noBadges": "No badge yet.",
+    "activity": "Recent activity",
+    "noActivity": "No finished game yet.",
+    "pet": "Pet",
+    "courses": "Class and courses",
+    "teaches": "Teaches",
+    "classes": "Classes: {names}",
+    "noCourses": "No course.",
+    "audience": {
+      "everyone": "Everyone",
+      "class": "My class",
+      "private": "Only me"
+    },
+    "sections": {
+      "level": {
+        "label": "Level and XP",
+        "hint": "your rank, level and XP bar"
+      },
+      "stats": {
+        "label": "Stats",
+        "hint": "current streak, best streak, finished quizzes"
+      },
+      "badges": {
+        "label": "Badges",
+        "hint": "the badges you’ve earned"
+      },
+      "pet": {
+        "label": "Pet",
+        "hint": "your pet, its name and mood"
+      },
+      "courses": {
+        "label": "Class and courses",
+        "hint": "your class and the courses you take or teach"
+      },
+      "activity": {
+        "label": "Recent activity",
+        "hint": "your latest games and their stars"
+      }
+    }
   }
 }

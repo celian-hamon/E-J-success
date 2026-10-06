@@ -55,7 +55,7 @@ export default async function LeaderboardPage({ searchParams }: { searchParams: 
               <div key={r.userId} className={`podium-step glass p${i + 1} ${r.isViewer ? "me" : ""}`}>
                 <span className="podium-medal" aria-hidden="true">{MEDALS[i]}</span>
                 <Avatar avatar={r.avatar} size={i === 0 ? 84 : 64} level={r.level} />
-                <strong>{r.isViewer ? t("you", { name: r.name }) : r.name}</strong>
+                <Link href={`/users/${r.userId}`} className="lb-link"><strong>{r.isViewer ? t("you", { name: r.name }) : r.name}</strong></Link>
                 {r.className && <span className="muted" style={{ fontSize: 13 }}>{r.className}</span>}
                 <span className="podium-xp">{format.number(r.xp)} XP</span>
               </div>

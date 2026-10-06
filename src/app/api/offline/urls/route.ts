@@ -14,8 +14,9 @@ export async function GET() {
     urls.add("/student/pet");
     const quizzes = await db.quiz.findMany({
       where: { published: true, course: { enrollments: { some: { userId: user.id } } } },
-      select: { id: true },
+      select: { id: true, courseId: true },
     });
+    quizzes.forEach((q) => urls.add(`/student/courses/${q.courseId}`));
     quizzes.forEach((q) => urls.add(`/student/quizzes/${q.id}`));
     const attempts = await db.attempt.findMany({
       where: { userId: user.id, completedAt: { not: null } },

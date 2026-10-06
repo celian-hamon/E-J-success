@@ -76,6 +76,9 @@ export default async function TeacherCoursePage({ params, searchParams }: Props)
                     <tr key={q.id}>
                       <td>
                         <Link href={`/teacher/quizzes/${q.id}`}><strong>{q.title}</strong></Link>
+                        {q._count.questions > 0 && (
+                          <Link href={`/teacher/quizzes/${q.id}/play`} className="test-link" title={t("testHint")}>🧪 {t("test")}</Link>
+                        )}
                         <div className="muted" style={{ fontSize: 13 }}>
                           {t("questionCount", { count: q._count.questions })}
                           {q.sourceFileName ? ` · ${t("fromFile", { file: q.sourceFileName })}` : ""}

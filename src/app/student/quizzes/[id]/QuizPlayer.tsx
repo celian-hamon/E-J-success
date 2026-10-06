@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { finishAttempt, startAttempt, submitAnswer, type AnswerResult } from "@/app/student/actions";
+import { previewAnswer } from "@/app/teacher/actions";
 import type { GameMode, PlayConfig } from "@/lib/game-modes";
 import { queueRun, type OfflineAnswer } from "@/lib/offline/outbox";
 import { isDifficulty } from "@/lib/difficulty";
@@ -56,7 +57,7 @@ export type PlayerQuiz = {
   questions: PlayerQuestion[];
 };
 
-type Phase = "intro" | "question" | "feedback" | "finishing" | "queued";
+type Phase = "intro" | "question" | "feedback" | "finishing" | "queued" | "mockDone";
 const KEYS = ["A", "B", "C", "D", "E", "F"];
 
 function isNetworkError(err: unknown) {
@@ -68,7 +69,11 @@ function withTimeout<T>(promise: Promise<T>, ms = 4000): Promise<T> {
   return Promise.race([promise, new Promise<T>((_, reject) => setTimeout(() => reject(new TypeError("network timeout")), ms))]);
 }
 
-export default function QuizPlayer({ quiz }: { quiz: PlayerQuiz }) {
+/**
+ * `mock`: staff test mode. Same game and grading, but nothing is stored (no attempt, XP,
+ * badges or pet meal) and the run ends on a summary instead of the results page.
+ */
+export default function QuizPlayer({ quiz, mock }: { quiz: PlayerQuiz; mock?: { exitHref: string } }) {
   const t = useTranslations("player");
   const tg = useTranslations("gameModes");
   const td = useTranslations("difficulty");
@@ -97,6 +102,7 @@ export default function QuizPlayer({ quiz }: { quiz: PlayerQuiz }) {
   const answering = useRef(false);
   const ending = useRef(false);
   const startedAt = useRef(new Date().toISOString());
+  const tally = useRef({ correct: 0, wrong: 0, answered: 0 }); // test mode keeps the run here
 
   const question = quiz.questions[index];
   const limitMs = quiz.secondsPerQuestion * 1000;
@@ -107,6 +113,7 @@ export default function QuizPlayer({ quiz }: { quiz: PlayerQuiz }) {
     setError(null);
     startedAt.current = new Date().toISOString();
     globalStart.current = performance.now();
+    if (mock) return showQuestion(0); // no attempt on the server
     if (!navigator.onLine) {
       setOffline(true);
       return showQuestion(0);
@@ -141,6 +148,7 @@ export default function QuizPlayer({ quiz }: { quiz: PlayerQuiz }) {
   const endGame = useCallback(async () => {
     if (ending.current) return;
     ending.current = true;
+    if (mock) return setPhase("mockDone");
     setPhase("finishing");
     const queue = (answers: OfflineAnswer[]) =>
       queueRun({
@@ -170,7 +178,7 @@ export default function QuizPlayer({ quiz }: { quiz: PlayerQuiz }) {
         setError(t("errors.save"));
       }
     }
-  }, [attemptId, offline, quiz, router, t]);
+  }, [attemptId, offline, quiz, router, t, mock]);
 
   const next = useCallback(() => {
     if (gameOver || isLast) return endGame();
@@ -196,9 +204,23 @@ export default function QuizPlayer({ quiz }: { quiz: PlayerQuiz }) {
         setPhase("feedback");
       };
 
-      if (offline || !attemptId) return keepOffline();
+      if (!mock && (offline || !attemptId)) return keepOffline();
       try {
-        const res = await submitAnswer({ attemptId, questionId: question.id, choiceId: sentChoice, timeMs, claim: verdict, response });
+        const res = mock
+          ? await previewAnswer({
+              quizId: quiz.id,
+              questionId: question.id,
+              choiceId: sentChoice,
+              timeMs,
+              claim: verdict,
+              response,
+              streakBefore: streak,
+              wrongSoFar: tally.current.wrong,
+            })
+          : await submitAnswer({ attemptId: attemptId!, questionId: question.id, choiceId: sentChoice, timeMs, claim: verdict, response });
+        tally.current.answered++;
+        if (res.correct) tally.current.correct++;
+        else tally.current.wrong++;
         setResult(res);
         setScore((s) => s + res.points);
         setStreak((s) => (res.correct ? s + 1 : 0));
@@ -206,7 +228,7 @@ export default function QuizPlayer({ quiz }: { quiz: PlayerQuiz }) {
         if (res.gameOver) setGameOver(true);
         setPhase("feedback");
       } catch (err) {
-        if (isNetworkError(err)) {
+        if (isNetworkError(err) && !mock) {
           setOffline(true);
           keepOffline();
         } else {
@@ -214,7 +236,7 @@ export default function QuizPlayer({ quiz }: { quiz: PlayerQuiz }) {
         }
       }
     },
-    [attemptId, offline, question, t, cfg.trueFalse, phase],
+    [attemptId, offline, question, t, cfg.trueFalse, phase, mock, quiz.id, streak],
   );
 
   // Per-question countdown (timed, combo); running out submits "no answer".
@@ -287,8 +309,28 @@ export default function QuizPlayer({ quiz }: { quiz: PlayerQuiz }) {
           {cfg.lives && ` ${t("livesIntro", { count: cfg.lives })}`}
           {cfg.combo && ` ${t("comboIntro")}`}
         </p>
+        {mock && <div className="alert mock-note" style={{ marginBottom: 16 }}>🧪 {t("mockIntro")}</div>}
         {error && <div className="alert alert-error" style={{ marginBottom: 16 }}>{error}</div>}
-        <button className="btn btn-bright" onClick={begin}>{t("start")}</button>
+        <button className="btn btn-bright" onClick={begin}>{mock ? t("mockStart") : t("start")}</button>
+      </section>
+    );
+  }
+
+  if (phase === "mockDone" && mock) {
+    const { correct, answered } = tally.current;
+    return (
+      <section className="player glass intro" style={{ textAlign: "center" }}>
+        <p className="eyebrow" style={{ justifyContent: "center" }}>🧪 {t("mockBadge")}</p>
+        <div className="score-big">{score}</div>
+        <p className="lede">
+          {t("mockSummary", { correct, total: quiz.questions.length, answered })}
+        </p>
+        <p className="muted" style={{ fontSize: 14 }}>{t("mockNothingSaved")}</p>
+        <div className="row" style={{ justifyContent: "center", gap: 10, marginTop: 18 }}>
+          {/* A reload reshuffles the questions like a new game. */}
+          <button className="btn btn-bright" onClick={() => window.location.reload()}>{t("mockAgain")}</button>
+          <Link className="btn" href={mock.exitHref}>{t("mockExit")}</Link>
+        </div>
       </section>
     );
   }
@@ -324,7 +366,10 @@ export default function QuizPlayer({ quiz }: { quiz: PlayerQuiz }) {
           )}
           {cfg.combo && !offline && streak > 1 && <span className="badge badge-violet">{t("comboStreak", { count: streak })}</span>}
         </span>
-        <span>{offline ? <span className="badge badge-rose">{t("offlineBadge")}</span> : t("points", { score })}</span>
+        <span className="row" style={{ gap: 8 }}>
+          {mock && <span className="badge badge-violet">🧪 {t("mockBadge")}</span>}
+          {offline ? <span className="badge badge-rose">{t("offlineBadge")}</span> : t("points", { score })}
+        </span>
       </div>
       <div className="progress" aria-hidden="true">
         <i style={{ width: `${((index + (phase === "question" ? 0 : 1)) / quiz.questions.length) * 100}%` }} />
@@ -442,7 +487,7 @@ export default function QuizPlayer({ quiz }: { quiz: PlayerQuiz }) {
           </div>
           {cfg.timer !== "global" && (
             <button className="btn btn-bright" onClick={next} disabled={phase === "finishing"} autoFocus>
-              {isLast || gameOver ? (phase === "finishing" ? t("saving") : t("seeResults")) : t("next")}
+              {isLast || gameOver ? (phase === "finishing" ? t("saving") : mock ? t("mockFinish") : t("seeResults")) : t("next")}
             </button>
           )}
         </div>

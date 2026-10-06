@@ -1,21 +1,17 @@
 import Link from "next/link";
 import type { Metadata } from "next";
-import { getTranslations } from "next-intl/server";
-import { db } from "@/lib/db";
+import { getFormatter, getTranslations } from "next-intl/server";
 import { requireRole } from "@/lib/auth";
-import { isGameMode, MODE_BADGE } from "@/lib/game-modes";
-import { DIFFICULTIES, isDifficulty } from "@/lib/difficulty";
-import { courseLeaderboard, leaderWindow } from "@/lib/gamification/leaderboard";
 import { loadProgress } from "@/lib/gamification/progress";
-import { starsFor } from "@/lib/gamification/stars";
 import { XP } from "@/lib/gamification/engine";
 import { syncPet } from "@/lib/pet/engine";
 import { isPetColor } from "@/lib/pet/rules";
-import { meetsOn } from "@/lib/schedule";
+import { isoWeekday, weekdayDate } from "@/lib/schedule";
+import { loadStudentCourses, nextClass, subjectAccent } from "@/lib/student-courses";
 import PageHead from "@/components/PageHead";
 import Avatar from "@/components/Avatar";
 import PetSprite from "@/components/PetSprite";
-import { LevelBar, Leaderboard, Stars, StreakFlame } from "@/components/Progress";
+import { LevelBar, StreakFlame } from "@/components/Progress";
 
 export async function generateMetadata(): Promise<Metadata> {
   return { title: (await getTranslations("nav"))("myCourses") };
@@ -23,45 +19,31 @@ export async function generateMetadata(): Promise<Metadata> {
 
 export default async function StudentHome() {
   const user = await requireRole("STUDENT");
-  const [tpl, td, t, tp, tg, tt, progress, pet, enrollments] = await Promise.all([
-    getTranslations("player"),
-    getTranslations("difficulty"),
+  const [t, tp, tt, format, progress, pet, courses] = await Promise.all([
     getTranslations("student"),
     getTranslations("pet"),
-    getTranslations("gameModes"),
     getTranslations("tiers"),
+    getFormatter(),
     loadProgress(user.id),
     syncPet(user.id),
-    db.enrollment.findMany({
-      where: { userId: user.id },
-      orderBy: { course: { code: "asc" } },
-      include: {
-        course: {
-          include: {
-            teacher: { select: { name: true } },
-            quizzes: {
-              where: { published: true },
-              orderBy: { createdAt: "desc" },
-              include: {
-                _count: { select: { questions: true } },
-                attempts: {
-                  where: { userId: user.id, completedAt: { not: null } },
-                  orderBy: { correctCount: "desc" },
-                  take: 1,
-                  select: { score: true, correctCount: true, totalQuestions: true },
-                },
-              },
-            },
-          },
-        },
-      },
-    }),
+    loadStudentCourses(user.id),
   ]);
 
-  const boards = await Promise.all(enrollments.map((e) => courseLeaderboard(e.course.id, user.id)));
   const { streak } = progress;
   const mealsLeft = pet.meals.filter((m) => m.status === "todo").length;
   const mealsReady = pet.meals.filter((m) => m.status === "ready").length;
+
+  // "Today", "Tomorrow" or the weekday's name.
+  const when = (inDays: number) =>
+    inDays === 0
+      ? t("today")
+      : inDays === 1
+        ? t("tomorrow")
+        : format.dateTime(weekdayDate(((isoWeekday() - 1 + inDays) % 7) + 1), { weekday: "long" });
+
+  // The next class; without any timetable, the subject with the most left to play.
+  const upcoming = nextClass(courses) ?? [...courses].sort((a, b) => b.quizzes.length - b.mastered - (a.quizzes.length - a.mastered))[0] ?? null;
+  const mealToEarn = upcoming && pet.meals.some((m) => m.course.id === upcoming.id && m.status === "todo");
 
   return (
     <>
@@ -69,6 +51,34 @@ export default async function StudentHome() {
         title={t.rich("title", { name: user.name.split(" ")[0], tint: (c) => <em className="tint">{c}</em> })}
         subtitle={progress.user.schoolClass ? t("subtitleClass", { name: progress.user.schoolClass.name }) : t("subtitle")}
       />
+
+      {upcoming && (
+        <section className="next-class glass intro" style={{ ["--c" as string]: subjectAccent(upcoming.code) }}>
+          <div className="next-class-when">
+            <span className="eyebrow">{t("nextClass")}</span>
+            <strong>{upcoming.inDays === null ? t("toReview") : when(upcoming.inDays)}</strong>
+          </div>
+          <div className="next-class-body">
+            <span className="badge badge-violet">{upcoming.code}</span>
+            <h2>{upcoming.title}</h2>
+            <p className="muted">
+              {upcoming.teacher ? `${t("with", { name: upcoming.teacher.name })} · ` : ""}
+              {t("subjectProgress", { done: upcoming.mastered, total: upcoming.quizzes.length })}
+            </p>
+            {mealToEarn && <p className="next-class-meal">🍎 {t("mealToEarn", { name: pet.pet.name })}</p>}
+          </div>
+          <div className="next-class-actions">
+            {upcoming.next && (
+              <Link className="btn btn-bright" href={`/student/quizzes/${upcoming.next.id}`}>
+                ▶ {upcoming.next.best ? t("replay") : t("play")} · {upcoming.next.title}
+              </Link>
+            )}
+            <Link className="btn" href={`/student/courses/${upcoming.id}`}>
+              {t("openSubject")} →
+            </Link>
+          </div>
+        </section>
+      )}
 
       <section className="player-card glass intro intro-2">
         <Link href="/profile" title={t("customizeAvatar")}>
@@ -106,69 +116,39 @@ export default async function StudentHome() {
         </span>
       </Link>
 
-      {enrollments.length === 0 && <div className="empty glass">{t("noCourses")}</div>}
-
-      {enrollments.map(({ course }, i) => {
-        const board = boards[i];
-        const today = meetsOn(course.classDays);
-        return (
-          <section key={course.id} className="panel glass intro intro-3">
-            <div style={{ marginBottom: 16 }}>
-              <div className="row">
-                <span className="badge badge-violet">{course.code}</span>
-                {today && <span className="badge badge-teal">🍎 {t("classToday")}</span>}
-              </div>
-              <h2 style={{ margin: "8px 0 0", fontWeight: 300, fontSize: 24 }}>{course.title}</h2>
-              {course.teacher && <p className="muted" style={{ margin: 0, fontSize: 14 }}>{t("with", { name: course.teacher.name })}</p>}
-            </div>
-            <div className="grid-2">
-              {course.quizzes.length === 0 ? (
-                <div className="empty">{t("noQuizzes")}</div>
-              ) : (
-                <div className="grid-cards">
-                  {course.quizzes.map((q) => {
-                    const best = q.attempts[0];
-                    const stars = best ? starsFor(best.correctCount, best.totalQuestions) : 0;
-                    return (
-                      <Link key={q.id} href={`/student/quizzes/${q.id}`} className="tile glass">
-                        <div className="spread">
-                          <span className={`badge ${isGameMode(q.mode) ? MODE_BADGE[q.mode] : "badge-teal"}`}>
-                            {isGameMode(q.mode) ? tg(`${q.mode}.label`) : q.mode}
-                          </span>
-                          <Stars count={stars} />
-                        </div>
-                        <div className="row" style={{ gap: 6 }}>
-                          {isDifficulty(q.difficulty) && (
-                            <span className={`badge ${DIFFICULTIES[q.difficulty].badge}`}>
-                              {td(`${q.difficulty}.label`)} · {td("xp", { n: DIFFICULTIES[q.difficulty].xpMultiplier })}
-                            </span>
-                          )}
-                          {q.combo && <span className="badge badge-violet">{tpl("optionCombo")}</span>}
-                          {q.lives && <span className="badge badge-rose">{tpl("optionSurvival", { count: q.lives })}</span>}
-                        </div>
-                        <h3>{q.title}</h3>
-                        {q.description && <p>{q.description}</p>}
-                        <span className="meta">
-                          {t("questions", { count: q._count.questions })} ·{" "}
-                          {!best
-                            ? t("new")
-                            : stars === 3
-                              ? t("mastered")
-                              : t("best", { correct: best.correctCount, total: best.totalQuestions })}
-                        </span>
-                      </Link>
-                    );
-                  })}
-                </div>
-              )}
-              <div>
-                <p className="panel-title">{t("leaderboard")}</p>
-                <Leaderboard rows={leaderWindow(board)} joinHint emptyText={t("leaderboardEmpty")} />
-              </div>
-            </div>
-          </section>
-        );
-      })}
+      {courses.length === 0 ? (
+        <div className="empty glass">{t("noCourses")}</div>
+      ) : (
+        <section className="intro intro-3">
+          <h2 className="panel-title" style={{ margin: "6px 4px 14px" }}>{t("subjects")}</h2>
+          <div className="subject-grid">
+            {courses.map((c) => {
+              const pct = c.quizzes.length ? Math.round((c.mastered / c.quizzes.length) * 100) : 0;
+              return (
+                <Link key={c.id} href={`/student/courses/${c.id}`} className="subject glass" style={{ ["--c" as string]: subjectAccent(c.code) }}>
+                  <span className="subject-mark" aria-hidden="true">{c.title.trim().charAt(0).toUpperCase()}</span>
+                  <span className="subject-body">
+                    <strong>{c.title}</strong>
+                    <span className="muted">
+                      {c.code}
+                      {c.inDays !== null && ` · ${when(c.inDays)}`}
+                    </span>
+                    <span className="subject-bar" aria-label={t("subjectProgress", { done: c.mastered, total: c.quizzes.length })}>
+                      <i style={{ width: `${pct}%` }} />
+                    </span>
+                    <span className="subject-meta">
+                      {c.quizzes.length === 0
+                        ? t("noQuizzesShort")
+                        : t("subjectProgress", { done: c.mastered, total: c.quizzes.length })}
+                      {c.inDays === 0 && <span className="badge badge-teal">🍎 {t("classToday")}</span>}
+                    </span>
+                  </span>
+                </Link>
+              );
+            })}
+          </div>
+        </section>
+      )}
     </>
   );
 }
