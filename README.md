@@ -1,3 +1,6 @@
+<img width="2552" height="1324" alt="image" src="https://github.com/user-attachments/assets/44d6f457-5308-4584-8445-a92ef2ebef51" />
+
+
 # E-J Success
 
 Quiz games built from course PDFs. Admins assign students to courses, teachers turn a PDF into a quiz
